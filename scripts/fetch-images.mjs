@@ -54,7 +54,11 @@ for (const asset of ASSETS) {
   const target = join(OUT_DIR, asset.out);
 
   try {
-    const response = await fetch(asset.url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+    // Reached via globalThis so no extra ESLint global has to be declared for
+    // this one script.
+    const response = await fetch(asset.url, {
+      signal: globalThis.AbortSignal.timeout(TIMEOUT_MS),
+    });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
     const input = Buffer.from(await response.arrayBuffer());

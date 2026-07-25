@@ -27,15 +27,6 @@ function planned(
 
 export const PLANNED_TOOLS: readonly ToolMeta[] = [
   planned({
-    id: 'buffer-preparation',
-    name: 'Buffer preparation calculator',
-    category: 'lab-calculators',
-    summary: 'Calculate component masses for a buffer at a chosen pH and strength.',
-    description:
-      'Apply the Henderson–Hasselbalch relationship to give acid and base quantities for a buffer.',
-    keywords: ['buffer', 'ph', 'henderson hasselbalch', 'tris', 'phosphate', 'hepes', 'pka'],
-  }),
-  planned({
     id: 'od600',
     name: 'OD600 calculator',
     category: 'cell-biology',

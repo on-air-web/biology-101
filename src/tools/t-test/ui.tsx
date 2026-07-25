@@ -1,8 +1,11 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Ladder } from '@/components/brand/ladder';
+import { DataImport } from '@/components/ui/data-import';
 import { Segmented } from '@/components/ui/segmented';
+import { ShareButton } from '@/components/ui/share-button';
+import { decodeNumberList, decodeString } from '@/lib/share';
 import { formatNumber } from '@/lib/format';
 import { DescriptiveError, parseNumberList, summarise } from '@/lib/stats/descriptives';
 import { TwoGroupError, compareTwoGroups, type TestKind } from './compute';
@@ -68,6 +71,24 @@ export default function TTestTool() {
   const [groupA, setGroupA] = useState('');
   const [groupB, setGroupB] = useState('');
 
+  /**
+   * Restore from a shared link. Read once on mount, never written back
+   * automatically — see ShareButton for why.
+   */
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const a = decodeNumberList(params, 'a');
+    const b = decodeNumberList(params, 'b');
+    const test = decodeString(
+      params,
+      'test',
+      TESTS.map((entry) => entry.value),
+    );
+    if (a) setGroupA(a.join('\n'));
+    if (b) setGroupB(b.join('\n'));
+    if (test) setKind(test as TestKind);
+  }, []);
+
   const { result, summaries, error } = useMemo(() => {
     let a: number[];
     let b: number[];
@@ -115,6 +136,16 @@ export default function TTestTool() {
           value={groupB}
           onChange={setGroupB}
           placeholder={'Paste a column\n15.2\n14.9\n16.0'}
+        />
+      </div>
+
+      <div className="mt-4">
+        <DataImport
+          slots={['Group A', 'Group B']}
+          onAssign={(values) => {
+            if (values['Group A']) setGroupA(values['Group A'].join('\n'));
+            if (values['Group B']) setGroupB(values['Group B'].join('\n'));
+          }}
         />
       </div>
 
@@ -214,6 +245,16 @@ export default function TTestTool() {
         <p className="mt-5 rounded-lab bg-surface-raised p-4 text-[13px] text-ink-muted">
           Paste at least two values into each group.
         </p>
+      ) : null}
+
+      {result ? (
+        <ShareButton
+          state={{
+            a: parseNumberList(groupA),
+            b: parseNumberList(groupB),
+            test: kind,
+          }}
+        />
       ) : null}
 
       <Ladder

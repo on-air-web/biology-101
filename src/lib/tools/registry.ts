@@ -9,6 +9,10 @@ import { serialDilutionMeta } from '@/tools/serial-dilution/meta';
 import { tTestMeta } from '@/tools/t-test/meta';
 import { multipleTestingMeta } from '@/tools/multiple-testing/meta';
 import { anovaMeta } from '@/tools/anova/meta';
+import { correlationMeta } from '@/tools/correlation/meta';
+import { contingencyMeta } from '@/tools/contingency/meta';
+import { powerMeta } from '@/tools/power/meta';
+import { bufferMeta } from '@/tools/buffer/meta';
 import { PLANNED_TOOLS } from './planned';
 import { EXTERNAL_TOOLS } from './external';
 import { STATISTICS_TOOLS } from './statistics-tools';
@@ -28,6 +32,10 @@ export const TOOLS: readonly ToolMeta[] = [
   tTestMeta,
   multipleTestingMeta,
   anovaMeta,
+  correlationMeta,
+  contingencyMeta,
+  powerMeta,
+  bufferMeta,
   ...EXTERNAL_TOOLS,
   ...STATISTICS_TOOLS,
   ...PLANNED_TOOLS,

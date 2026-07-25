@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from 'react';
 import { Ladder } from '@/components/brand/ladder';
+import { DataImport } from '@/components/ui/data-import';
+import { ShareButton } from '@/components/ui/share-button';
 import { Segmented } from '@/components/ui/segmented';
 import { formatNumber } from '@/lib/format';
 import { DescriptiveError, parseNumberList } from '@/lib/stats/descriptives';
@@ -60,6 +62,15 @@ export default function MultipleTestingTool() {
         placeholder={'Paste a column\n0.001\n0.008\n0.039\n0.205'}
         className="mt-1.5 w-full resize-y rounded-lab border border-line-strong bg-black p-2.5 font-mono text-[13px] outline-none focus:ring-2 focus:ring-gfp-400"
       />
+
+      <div className="mt-4">
+        <DataImport
+          slots={['p-values']}
+          onAssign={(values) => {
+            if (values['p-values']) setInput(values['p-values'].join('\n'));
+          }}
+        />
+      </div>
 
       <div className="mt-4">
         <Segmented
@@ -137,6 +148,8 @@ export default function MultipleTestingTool() {
           Paste a column of p-values to correct.
         </p>
       ) : null}
+
+      {result ? <ShareButton state={{ p: parseNumberList(input), method }} /> : null}
 
       <Ladder
         formula={

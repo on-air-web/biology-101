@@ -228,3 +228,63 @@ export function fP(f: number, df1: number, df2: number): number {
   if (f <= 0) return 1;
   return incompleteBeta(df2 / 2, df1 / 2, df2 / (df1 * f + df2));
 }
+
+/**
+ * Inverse standard normal, by bisection on the CDF.
+ *
+ * Same reasoning as tInv: called once per result, and a method that cannot
+ * diverge is worth more here than speed.
+ */
+export function normalInv(p: number): number {
+  if (p <= 0 || p >= 1) throw new Error('Probability must lie strictly between 0 and 1.');
+  let low = -40;
+  let high = 40;
+  for (let index = 0; index < 200; index += 1) {
+    const mid = (low + high) / 2;
+    if (normalCdf(mid) < p) low = mid;
+    else high = mid;
+  }
+  return (low + high) / 2;
+}
+
+/** Critical z for a two-sided interval at the given confidence level. */
+export function normalCritical(confidence: number): number {
+  return normalInv(1 - (1 - confidence) / 2);
+}
+
+/**
+ * Noncentral t distribution, P(T <= t) with noncentrality δ.
+ *
+ * The series of Lenth (1989): a Poisson-weighted mixture of incomplete beta
+ * terms. This is what power analysis needs, and it is the only genuinely
+ * awkward distribution in the set — the normal approximation people reach for
+ * instead understates the sample size at small n, which is exactly where the
+ * answer matters.
+ *
+ * Verified against an independent implementation reproducing the standard
+ * sample sizes: 394, 64 and 26 per group for d = 0.2, 0.5 and 0.8 at 80%
+ * power.
+ */
+export function noncentralTCdf(t: number, df: number, ncp: number): number {
+  if (ncp === 0) return tCdf(t, df);
+  // Reflect rather than extend the series below zero.
+  if (t < 0) return 1 - noncentralTCdf(-t, df, -ncp);
+
+  const x = (t * t) / (t * t + df);
+  const half = (ncp * ncp) / 2;
+  const logHalf = Math.log(half);
+
+  let total = 0;
+  for (let j = 0; j < 400; j += 1) {
+    const logCommon = -half + j * logHalf - logGamma(j + 1);
+    const p = Math.exp(logCommon);
+    const q = (Math.exp(-half + j * logHalf - logGamma(j + 1.5)) * ncp) / Math.SQRT2;
+
+    total += p * incompleteBeta(j + 0.5, df / 2, x) + q * incompleteBeta(j + 1, df / 2, x);
+
+    // The Poisson weights fall away quickly once past the mode.
+    if (j > 5 && p < 1e-18) break;
+  }
+
+  return normalCdf(-ncp) + 0.5 * total;
+}

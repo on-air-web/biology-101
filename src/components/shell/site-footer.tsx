@@ -61,9 +61,15 @@ export function SiteFooter() {
       </div>
 
       <div className="border-t border-line">
-        <p className="mx-auto max-w-6xl px-4 py-6 text-sm text-ink-muted sm:px-6">
-          Results are provided for laboratory planning. Verify critical calculations independently.
-        </p>
+        <div className="mx-auto flex max-w-6xl flex-wrap items-baseline justify-between gap-x-6 gap-y-2 px-4 py-6 sm:px-6">
+          <p className="text-sm text-ink-muted">
+            Results are provided for laboratory planning. Verify critical calculations
+            independently.
+          </p>
+          <p className="text-sm text-ink-faint">
+            Made with love for the community by Diganta Chaudhury
+          </p>
+        </div>
       </div>
     </footer>
   );

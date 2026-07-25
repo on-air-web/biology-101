@@ -24,6 +24,10 @@ const TOOL_COMPONENTS: Record<string, ComponentType> = {
   't-test': dynamic(() => import('@/tools/t-test/ui')),
   'multiple-testing': dynamic(() => import('@/tools/multiple-testing/ui')),
   anova: dynamic(() => import('@/tools/anova/ui')),
+  correlation: dynamic(() => import('@/tools/correlation/ui')),
+  contingency: dynamic(() => import('@/tools/contingency/ui')),
+  power: dynamic(() => import('@/tools/power/ui')),
+  'buffer-preparation': dynamic(() => import('@/tools/buffer/ui')),
 };
 
 export function ToolBody({ toolId }: { toolId: string }) {

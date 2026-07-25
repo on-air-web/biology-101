@@ -99,7 +99,7 @@ export const STATISTICS_TASKS: readonly Task[] = [
     caution:
       'R\u00b2 describes how well the line fits the data you have. It says nothing about whether the ' +
       'relationship is causal, and nothing about whether it holds outside the range you measured.',
-    toolIds: ['graphpad-prism', 'jamovi', 'r-project'],
+    toolIds: ['correlation', 'graphpad-prism', 'jamovi', 'r-project'],
     pipelineIds: ['statsmodels'],
     keywords: [
       'correlation',
@@ -158,7 +158,7 @@ export const STATISTICS_TASKS: readonly Task[] = [
       'Post-hoc power \u2014 computing power from the effect you observed, after a non-significant ' +
       'result \u2014 is circular and uninformative. It is a recognised statistical error, not a ' +
       'rescue for an underpowered study.',
-    toolIds: ['gpower', 'r-project'],
+    toolIds: ['power', 'gpower', 'r-project'],
     keywords: [
       'power analysis',
       'sample size',

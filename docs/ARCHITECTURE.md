@@ -282,3 +282,65 @@ Welch's is the default t-test rather than Student's — it costs almost nothing
 when variances match and protects against inflated error when they do not.
 Hedges' g is reported rather than Cohen's d, since the small-sample correction
 vanishes at large n and there is no case for the uncorrected version.
+
+## Reference values
+
+Twice during the statistics work a test failed and the implementation turned
+out to be right — a critical value recalled from a table was wrong, and in one
+case attached to the wrong degrees of freedom entirely. Both were caught only
+because the test existed.
+
+The rule now: no reference value in a statistics test comes from memory. Each
+is either computed independently (numerical integration of the density, a
+second implementation in another language) or derived from a case checkable by
+hand, and the comment above it says which. `t(0.975, 8) = 2.306` is fine
+because the test also verifies it round-trips through the CDF; `F(0.95, 3, 12)`
+is not, unless something computed it.
+
+## Data import and sharing
+
+`src/lib/data/table.ts` parses pasted or uploaded delimited data into named
+numeric columns. The delimiter is chosen by which candidate produces the most
+consistent column count rather than by frequency — a decimal comma or a quoted
+field wins on frequency while producing ragged rows. Quoted fields, doubled
+quotes, ragged rows and stray non-numeric cells are all handled.
+
+Thousands separators are stripped only when the delimiter is not a comma. In a
+comma-delimited file `1,200` is genuinely two cells and there is no way to tell
+it apart from one number, so we do not guess: silently merging two columns is a
+worse failure than not supporting the notation.
+
+Files are read with `FileReader` in `DataImport`. Nothing is uploaded, so the
+promise on every tool page is unchanged.
+
+`src/lib/share.ts` encodes a tool's inputs into its URL. **The URL is never
+written automatically.** Inbound links are read once on mount; the address bar
+changes only when someone presses "Copy link". Auto-syncing state would push
+every dataset into browser history, which can sync to a signed-in account, and
+would quietly contradict the claim that nothing you type leaves your machine.
+Explicit sharing keeps that claim true: the data travels only when you decide
+it should.
+
+`buildShareUrl` throws rather than truncating when a dataset will not fit in a
+URL. A link that silently drops values would reproduce the wrong result, which
+is worse than no link.
+
+## Buffer data
+
+`src/lib/chem/buffers.ts` stores chemical **formulae**, not molecular weights.
+Mass is derived by the same parser the molecular weight calculator uses, so
+there is one fewer number to mistype and hydrates work for free. A test
+asserts every stored formula parses and that the derived masses match the
+figures printed on reagent bottles.
+
+Every buffer carries a temperature coefficient. A calculator that treats pKa as
+a constant gives the wrong answer for anything adjusted on the bench and used
+in the cold room — Tris moves 0.028 units per degree, so a pH 8.0 buffer
+adjusted at 25 °C reads about 8.59 at 4 °C. The tool takes both temperatures
+and states the drift outright.
+
+Ionic strength is deliberately **not** corrected for. Activity effects shift
+real pH by roughly 0.1 units at physiological salt, and applying a partial
+correction would imply a precision the calculation does not have. The honest
+instruction — get close here, then check with a meter at the working
+temperature — is printed under every result.

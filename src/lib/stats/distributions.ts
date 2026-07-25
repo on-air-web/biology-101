@@ -153,3 +153,78 @@ export function normalCdf(z: number): number {
 export function normalTwoTailedP(z: number): number {
   return erfc(Math.abs(z) / Math.SQRT2);
 }
+
+/** Series expansion for the regularised lower incomplete gamma P(a, x). */
+function gammaSeries(a: number, x: number): number {
+  const EPSILON = 3e-16;
+  let ap = a;
+  let sum = 1 / a;
+  let delta = sum;
+  for (let index = 0; index < 500; index += 1) {
+    ap += 1;
+    delta *= x / ap;
+    sum += delta;
+    if (Math.abs(delta) < Math.abs(sum) * EPSILON) break;
+  }
+  return sum * Math.exp(-x + a * Math.log(x) - logGamma(a));
+}
+
+/** Continued fraction for the regularised upper incomplete gamma Q(a, x). */
+function gammaContinuedFraction(a: number, x: number): number {
+  const EPSILON = 3e-16;
+  const TINY = 1e-300;
+
+  let b = x + 1 - a;
+  let c = 1 / TINY;
+  let d = 1 / b;
+  let h = d;
+
+  for (let index = 1; index <= 500; index += 1) {
+    const an = -index * (index - a);
+    b += 2;
+    d = an * d + b;
+    if (Math.abs(d) < TINY) d = TINY;
+    c = b + an / c;
+    if (Math.abs(c) < TINY) c = TINY;
+    d = 1 / d;
+    const delta = d * c;
+    h *= delta;
+    if (Math.abs(delta - 1) < EPSILON) break;
+  }
+
+  return Math.exp(-x + a * Math.log(x) - logGamma(a)) * h;
+}
+
+/** Regularised lower incomplete gamma P(a, x). */
+export function incompleteGamma(a: number, x: number): number {
+  if (x <= 0) return 0;
+  // The series converges quickly below x = a + 1; the fraction above it.
+  return x < a + 1 ? gammaSeries(a, x) : 1 - gammaContinuedFraction(a, x);
+}
+
+/** P(X <= x) for chi-square with `df` degrees of freedom. */
+export function chiSquareCdf(x: number, df: number): number {
+  return incompleteGamma(df / 2, x / 2);
+}
+
+/** Upper-tail p-value for a chi-square statistic. */
+export function chiSquareP(x: number, df: number): number {
+  return 1 - chiSquareCdf(x, df);
+}
+
+/** P(F <= f) for the F distribution with df1 and df2. */
+export function fCdf(f: number, df1: number, df2: number): number {
+  if (f <= 0) return 0;
+  return incompleteBeta(df1 / 2, df2 / 2, (df1 * f) / (df1 * f + df2));
+}
+
+/**
+ * Upper-tail p-value for an F statistic.
+ *
+ * Computed from the reflected incomplete beta rather than as 1 − fCdf, which
+ * loses all precision once the p-value drops below about 1e-16.
+ */
+export function fP(f: number, df1: number, df2: number): number {
+  if (f <= 0) return 1;
+  return incompleteBeta(df2 / 2, df1 / 2, df2 / (df1 * f + df2));
+}

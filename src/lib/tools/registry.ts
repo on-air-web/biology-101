@@ -8,6 +8,7 @@ import { dilutionMeta } from '@/tools/dilution/meta';
 import { serialDilutionMeta } from '@/tools/serial-dilution/meta';
 import { tTestMeta } from '@/tools/t-test/meta';
 import { multipleTestingMeta } from '@/tools/multiple-testing/meta';
+import { anovaMeta } from '@/tools/anova/meta';
 import { PLANNED_TOOLS } from './planned';
 import { EXTERNAL_TOOLS } from './external';
 import { STATISTICS_TOOLS } from './statistics-tools';
@@ -26,6 +27,7 @@ export const TOOLS: readonly ToolMeta[] = [
   translateMeta,
   tTestMeta,
   multipleTestingMeta,
+  anovaMeta,
   ...EXTERNAL_TOOLS,
   ...STATISTICS_TOOLS,
   ...PLANNED_TOOLS,

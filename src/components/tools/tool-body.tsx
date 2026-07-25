@@ -23,6 +23,7 @@ const TOOL_COMPONENTS: Record<string, ComponentType> = {
   translate: dynamic(() => import('@/tools/translate/ui')),
   't-test': dynamic(() => import('@/tools/t-test/ui')),
   'multiple-testing': dynamic(() => import('@/tools/multiple-testing/ui')),
+  anova: dynamic(() => import('@/tools/anova/ui')),
 };
 
 export function ToolBody({ toolId }: { toolId: string }) {

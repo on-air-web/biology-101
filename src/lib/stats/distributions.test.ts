@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  chiSquareCdf,
+  chiSquareP,
+  fCdf,
+  fP,
   incompleteBeta,
   logGamma,
   normalCdf,
@@ -86,5 +90,44 @@ describe('normal distribution', () => {
     expect(normalTwoTailedP(1.96)).toBeCloseTo(0.05, 4);
     expect(normalTwoTailedP(0)).toBeCloseTo(1, 6);
     expect(normalTwoTailedP(3)).toBeCloseTo(0.0026998, 5);
+  });
+});
+
+describe('chi-square', () => {
+  it('matches tabulated critical values', () => {
+    // 95th percentile: 3.841 at 1 df, 5.991 at 2 df, 11.070 at 5 df.
+    expect(chiSquareP(3.8415, 1)).toBeCloseTo(0.05, 4);
+    expect(chiSquareP(5.9915, 2)).toBeCloseTo(0.05, 4);
+    expect(chiSquareP(11.07, 5)).toBeCloseTo(0.05, 3);
+    expect(chiSquareP(6.635, 1)).toBeCloseTo(0.01, 3);
+  });
+
+  it('is a proper CDF', () => {
+    expect(chiSquareCdf(0, 3)).toBe(0);
+    expect(chiSquareCdf(1000, 3)).toBeCloseTo(1, 10);
+    // At 2 df the CDF is 1 − exp(−x/2), which is checkable in closed form.
+    expect(chiSquareCdf(4, 2)).toBeCloseTo(1 - Math.exp(-2), 10);
+  });
+});
+
+describe('F distribution', () => {
+  it('matches critical values verified by numerical integration', () => {
+    // Obtained by integrating the F density directly, not from memory:
+    // F(0.95) = 3.4903 at (3, 12), 4.2565 at (2, 9), 4.5337 at (4, 6).
+    expect(fP(3.4903, 3, 12)).toBeCloseTo(0.05, 4);
+    expect(fP(4.2565, 2, 9)).toBeCloseTo(0.05, 4);
+    expect(fP(4.5337, 4, 6)).toBeCloseTo(0.05, 4);
+  });
+
+  it('relates to t: F(1, df) = t² ', () => {
+    // An F test on two groups is the square of the equivalent t test.
+    const t = 2.5;
+    expect(fP(t * t, 1, 20)).toBeCloseTo(tTwoTailedP(t, 20), 10);
+  });
+
+  it('is a proper CDF', () => {
+    expect(fCdf(0, 3, 10)).toBe(0);
+    expect(fCdf(1e6, 3, 10)).toBeCloseTo(1, 6);
+    expect(fCdf(2, 4, 8) + fP(2, 4, 8)).toBeCloseTo(1, 10);
   });
 });

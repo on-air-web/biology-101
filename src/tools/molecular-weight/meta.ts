@@ -21,6 +21,7 @@ export const molecularWeightMeta: ToolMeta = {
     'chemical formula',
     'hydrate',
   ],
+  kind: 'builtin',
   status: 'stable',
   computeLocation: 'client',
   citations: [

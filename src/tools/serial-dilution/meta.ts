@@ -20,6 +20,7 @@ export const serialDilutionMeta: ToolMeta = {
     'titration series',
     'standard curve',
   ],
+  kind: 'builtin',
   status: 'stable',
   computeLocation: 'client',
   citations: [

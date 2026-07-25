@@ -28,6 +28,7 @@ export const translateMeta: ToolMeta = {
     'protein sequence',
     'genetic code',
   ],
+  kind: 'builtin',
   status: 'stable',
   computeLocation: 'client',
   citations: [NCBI_CITATION],

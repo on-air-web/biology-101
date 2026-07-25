@@ -22,6 +22,7 @@ export const molarityMeta: ToolMeta = {
     'how much to weigh',
     'mass to concentration',
   ],
+  kind: 'builtin',
   status: 'stable',
   computeLocation: 'client',
   citations: [

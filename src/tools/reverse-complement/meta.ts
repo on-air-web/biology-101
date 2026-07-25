@@ -20,6 +20,7 @@ export const reverseComplementMeta: ToolMeta = {
     'rna',
     'primer',
   ],
+  kind: 'builtin',
   status: 'stable',
   computeLocation: 'client',
   citations: [

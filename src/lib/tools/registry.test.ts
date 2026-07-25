@@ -64,6 +64,26 @@ describe('tool registry', () => {
     }
   });
 
+  it('requires every external tool to carry judgement, not just a link', () => {
+    for (const tool of TOOLS) {
+      if (tool.kind !== 'external') continue;
+      expect(tool.external, `${tool.id} is external but has no external block`).toBeDefined();
+      expect(tool.external?.url, `${tool.id} has no URL`).toMatch(/^https:\/\//);
+      expect(tool.external?.provider.length, `${tool.id} has no provider`).toBeGreaterThan(1);
+      // The whole point of indexing someone else's tool.
+      expect(
+        tool.external?.useWhen.length,
+        `${tool.id} has no "use when" guidance`,
+      ).toBeGreaterThan(40);
+    }
+  });
+
+  it('does not attach external metadata to built-in tools', () => {
+    for (const tool of TOOLS) {
+      if (tool.kind === 'builtin') expect(tool.external, tool.id).toBeUndefined();
+    }
+  });
+
   it('gives every tool searchable keywords and a summary', () => {
     for (const tool of TOOLS) {
       expect(tool.keywords.length, `${tool.id} has no keywords`).toBeGreaterThan(0);

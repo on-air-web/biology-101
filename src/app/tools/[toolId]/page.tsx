@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Breadcrumbs } from '@/components/shell/breadcrumbs';
 import { ComputeBadge, StatusBadge } from '@/components/ui/badge';
 import { ToolBody } from '@/components/tools/tool-body';
+import { ExternalPanel } from '@/components/tools/external-panel';
 import { ToolJsonLd } from '@/components/seo/json-ld';
 import { FavouriteButton } from '@/components/tools/favourite-button';
 import { RecordVisit } from '@/components/tools/record-visit';
@@ -77,7 +78,7 @@ export default async function ToolPage({ params }: PageProps) {
           for. Everything around it is shared, so no tool page reinvents its
           own layout. */}
       <section className="mt-8">
-        <ToolBody toolId={tool.id} />
+        {tool.kind === 'external' ? <ExternalPanel tool={tool} /> : <ToolBody toolId={tool.id} />}
       </section>
 
       <section className="mt-10">

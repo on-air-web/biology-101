@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { SiteHeader } from '@/components/shell/site-header';
+import { SiteNav } from '@/components/shell/site-nav';
 import { SiteFooter } from '@/components/shell/site-footer';
 import { ThemeScript } from '@/components/shell/theme-script';
 import { SITE_URL } from '@/lib/routes';
@@ -30,7 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           Skip to content
         </a>
-        <SiteHeader />
+        <SiteNav />
         <main id="main" className="flex-1">
           {children}
         </main>

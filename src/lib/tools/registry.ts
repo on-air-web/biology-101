@@ -7,6 +7,7 @@ import { molecularWeightMeta } from '@/tools/molecular-weight/meta';
 import { dilutionMeta } from '@/tools/dilution/meta';
 import { serialDilutionMeta } from '@/tools/serial-dilution/meta';
 import { PLANNED_TOOLS } from './planned';
+import { EXTERNAL_TOOLS } from './external';
 
 /**
  * The single source of truth for which tools exist.
@@ -20,6 +21,7 @@ export const TOOLS: readonly ToolMeta[] = [
   reverseComplementMeta,
   gcContentMeta,
   translateMeta,
+  ...EXTERNAL_TOOLS,
   ...PLANNED_TOOLS,
 ];
 
@@ -32,6 +34,16 @@ export function getTool(id: string): ToolMeta | undefined {
 /** Tools users can actually open. Planned tools appear in the catalog only. */
 export function getLiveTools(): ToolMeta[] {
   return TOOLS.filter((tool) => tool.status !== 'planned');
+}
+
+/** Tools that run here, in the browser. */
+export function getBuiltinTools(): ToolMeta[] {
+  return TOOLS.filter((tool) => tool.kind === 'builtin' && tool.status !== 'planned');
+}
+
+/** Curated entries we link to rather than host. */
+export function getExternalTools(): ToolMeta[] {
+  return TOOLS.filter((tool) => tool.kind === 'external');
 }
 
 export function getToolsByCategory(category: ToolCategoryId): ToolMeta[] {

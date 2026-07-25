@@ -187,3 +187,38 @@ favourites, never a crash on a page they opened to do a calculation.
 Because pages are prerendered with no knowledge of any user, the
 `usePreferences` hook exposes `ready` and callers render nothing personal until
 it is true. Anything else is a hydration mismatch on every tool page.
+
+## The external directory
+
+Half the product. `src/lib/tools/external.ts` holds curated entries for tools
+we link to rather than host, using the same `ToolMeta` record as built-in tools
+plus an `external` block: provider, URL, access model, licence note and — the
+required field — `useWhen`.
+
+`useWhen` is the reason an entry exists. It says when this is the right choice
+and, where relevant, what to use instead. A directory entry without judgement is
+a bookmark, and `registry.test.ts` fails the build if one is missing or shorter
+than a sentence.
+
+`access` is the field nobody else publishes and everybody needs: free, sign-in,
+academic-only, freemium, paid, or desktop install. Whether a tool is usable at
+all often turns on it.
+
+`reviewedAt` on an external entry means the last time someone confirmed the tool
+still exists, still works, and that the guidance still holds. External tools
+change under us; this is how we notice.
+
+## Imagery
+
+`src/lib/images.ts` is the manifest. Every photographic asset carries source,
+source URL, licence and a `cleared` flag. Attribution is not permission —
+anything with `cleared: false` must be licensed or replaced before publication,
+and `/credits` renders the state of each.
+
+Section banners are generated where possible: `MolecularField` draws rings,
+bonds and atoms from a fixed seed. The seed matters — a random layout would
+differ between the server render and hydration and produce a mismatch on every
+load.
+
+Parallax lives in `Band`. The motion is slight on purpose, and disabled entirely
+under `prefers-reduced-motion`.

@@ -20,6 +20,7 @@ export const gcContentMeta: ToolMeta = {
     'nucleotide composition',
     'gc skew',
   ],
+  kind: 'builtin',
   status: 'stable',
   computeLocation: 'client',
   citations: [

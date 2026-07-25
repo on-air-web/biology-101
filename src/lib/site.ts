@@ -14,5 +14,5 @@ export const SITE = {
    * or replace the fallback below with your own URL. When it is unset the
    * source links are hidden rather than rendered as dead links.
    */
-  repoUrl: process.env.NEXT_PUBLIC_REPO_URL ?? undefined,
+  repoUrl: process.env.NEXT_PUBLIC_REPO_URL ?? 'https://github.com/on-air-web/biology-101',
 } as const;

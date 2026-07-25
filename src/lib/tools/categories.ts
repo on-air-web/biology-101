@@ -28,6 +28,11 @@ export const CATEGORIES: readonly ToolCategory[] = [
     summary: 'Culture planning, growth rates, viability and seeding density.',
   },
   {
+    id: 'imaging',
+    name: 'Imaging & microscopy',
+    summary: 'Image analysis, segmentation, deconvolution and slide handling.',
+  },
+  {
     id: 'statistics',
     name: 'Statistics and plotting',
     summary: 'Significance testing, regression and publication-ready figures.',

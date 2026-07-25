@@ -12,10 +12,11 @@ import type { ToolMeta } from './types';
  * great deal better than a catalog of dead links.
  */
 function planned(
-  meta: Omit<ToolMeta, 'status' | 'computeLocation' | 'citations' | 'reviewedAt'>,
+  meta: Omit<ToolMeta, 'kind' | 'status' | 'computeLocation' | 'citations' | 'reviewedAt'>,
 ): ToolMeta {
   return {
     ...meta,
+    kind: 'builtin',
     status: 'planned',
     computeLocation: 'client',
     citations: [],

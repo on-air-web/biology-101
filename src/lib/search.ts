@@ -56,6 +56,17 @@ function scoreTerm(tool: ToolMeta, term: string): number {
     }
   }
 
+  // People search by who runs a tool: "ebi", "ncbi", "neb", "deepmind".
+  if (tool.external) {
+    const provider = normalize(tool.external.provider);
+    if (provider === term) best = Math.max(best, 58);
+    // Prefix matching on one or two characters is noise — "pi" would otherwise
+    // match the PIR in UniProt's provider list and outrank the isoelectric
+    // point calculator. Exact matches are still honoured at any length.
+    else if (term.length >= 3 && provider.split(' ').some((word) => word.startsWith(term)))
+      best = Math.max(best, 40);
+  }
+
   if (name.includes(term)) best = Math.max(best, 30);
   if (normalize(tool.summary).includes(term)) best = Math.max(best, 12);
 
@@ -87,8 +98,11 @@ export function searchTools(tools: readonly ToolMeta[], query: string): SearchRe
 
     if (!matchedEveryTerm) continue;
 
-    // A tool you can actually use outranks one that is merely announced.
-    if (tool.status === 'planned') total -= 25;
+    // A tool you can actually use outranks one that is merely announced — but
+    // proportionally, not by a flat penalty. A flat subtraction let a weak
+    // prefix match on a live tool overtake an exact keyword match on a planned
+    // one, which puts the wrong answer first for queries like "pi".
+    if (tool.status === 'planned') total *= 0.7;
     // Prefer the more specific of two similar matches.
     total -= Math.min(tool.name.length / 10, 4);
 

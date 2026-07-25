@@ -21,9 +21,27 @@ describe('searchTools', () => {
 
   it('resolves the abbreviations people actually type', () => {
     expect(topId('mw')).toBe('molecular-weight');
-    expect(topId('tm')).toBe('melting-temperature');
     expect(topId('pi')).toBe('protein-parameters');
     expect(topId('od600')).toBe('od600');
+    expect(topId('melting temperature')).toBe('melting-temperature');
+  });
+
+  it('surfaces a usable tool ahead of a planned one, but keeps both in reach', () => {
+    // "tm" matches Primer3, which is live and does compute Tm, ahead of the
+    // melting temperature calculator, which is still only announced. That
+    // ordering is correct: a tool someone can open beats one they cannot.
+    const ids = searchTools(TOOLS, 'tm')
+      .slice(0, 4)
+      .map((result) => result.tool.id);
+    expect(ids).toContain('melting-temperature');
+    expect(ids.indexOf('primer3')).toBeLessThan(ids.indexOf('melting-temperature'));
+  });
+
+  it('finds external tools by their provider', () => {
+    const ebi = searchTools(TOOLS, 'ebi').map((result) => result.tool.id);
+    expect(ebi.length).toBeGreaterThan(2);
+    expect(ebi).toContain('clustal-omega');
+    expect(topId('alphafold')).toBe('alphafold-server');
   });
 
   it('matches on prefixes as the user types', () => {

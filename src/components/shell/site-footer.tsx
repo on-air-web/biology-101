@@ -8,12 +8,11 @@ export function SiteFooter() {
     <footer className="mt-24 border-t border-line bg-surface-sunken">
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:grid-cols-2 sm:px-6 lg:grid-cols-4">
         <div className="sm:col-span-2 lg:col-span-2">
-          <p className="font-display text-lg font-semibold [font-variation-settings:'wdth'_112]">
-            Biology<span className="text-brand">101</span>
+          <p className="text-[15px] font-bold tracking-[-0.015em]">
+            Biology<span className="text-gfp-400">101</span>
           </p>
           <p className="mt-3 max-w-sm text-sm text-ink-muted">
-            Calculators, sequence tools and laboratory utilities in one place. Every result shows
-            the formula behind it, and nothing you enter leaves your browser.
+            Your one stop shop for biology. Free, cited, and built in the open.
           </p>
         </div>
 
@@ -38,6 +37,16 @@ export function SiteFooter() {
             <li>
               <Link href={routes.about()} className="text-ink-muted hover:text-ink">
                 About
+              </Link>
+            </li>
+            <li>
+              <Link href={routes.directory()} className="text-ink-muted hover:text-ink">
+                External directory
+              </Link>
+            </li>
+            <li>
+              <Link href={routes.credits()} className="text-ink-muted hover:text-ink">
+                Image credits
               </Link>
             </li>
             {SITE.repoUrl ? (

@@ -43,7 +43,14 @@ export default tseslint.config(
   {
     // Build scripts run in Node, not the browser.
     files: ['scripts/**/*.mjs'],
-    languageOptions: { globals: { console: 'readonly', process: 'readonly' } },
+    languageOptions: {
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+        fetch: 'readonly',
+        Buffer: 'readonly',
+      },
+    },
   },
   {
     // The restriction above applies only to the pure compute layer. Everything

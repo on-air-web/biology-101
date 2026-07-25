@@ -19,6 +19,7 @@ export const dilutionMeta: ToolMeta = {
     'dilution factor',
     'how much stock',
   ],
+  kind: 'builtin',
   status: 'stable',
   computeLocation: 'client',
   citations: [

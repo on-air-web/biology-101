@@ -13,6 +13,7 @@ export const TOOL_CATEGORIES = [
   'bioinformatics',
   'protein',
   'cell-biology',
+  'imaging',
   'statistics',
   'lab-utilities',
 ] as const;
@@ -65,6 +66,44 @@ export interface Attribution {
   notes?: string;
 }
 
+/**
+ * How much friction stands between a user and actually running the tool. This
+ * is the single most useful thing to know before clicking through, and almost
+ * nobody publishes it.
+ */
+export type AccessModel =
+  'free' | 'free-registration' | 'academic-only' | 'freemium' | 'paid' | 'install';
+
+export const ACCESS_LABELS: Record<AccessModel, string> = {
+  free: 'Free',
+  'free-registration': 'Sign-in',
+  'academic-only': 'Academic only',
+  freemium: 'Free tier',
+  paid: 'Paid',
+  install: 'Desktop install',
+};
+
+/** A tool we point to rather than host. */
+export interface ExternalInfo {
+  /** Who runs it — EMBL-EBI, NCBI, DeepMind, a named lab. */
+  provider: string;
+  url: string;
+  access: AccessModel;
+  /** Licensing or usage restriction that would change someone's decision. */
+  licenseNote?: string;
+  /**
+   * The reason this entry exists. Says when this is the right choice and,
+   * where relevant, when it is not. Required — an external entry without
+   * judgement is just a bookmark.
+   */
+  useWhen: string;
+  /** Practical limits: sequence length, job quota, file size. */
+  inputNote?: string;
+}
+
+/** Hosted here and run in the browser, or linked out to someone else. */
+export type ToolKind = 'builtin' | 'external';
+
 export type ToolStatus = 'stable' | 'beta' | 'planned';
 
 /**
@@ -90,6 +129,9 @@ export interface ToolMeta {
    * good as this list.
    */
   keywords: string[];
+  kind: ToolKind;
+  /** Present exactly when kind is 'external'. */
+  external?: ExternalInfo;
   status: ToolStatus;
   computeLocation: ComputeLocation;
   /** At least one required for any tool that computes a scientific result. */

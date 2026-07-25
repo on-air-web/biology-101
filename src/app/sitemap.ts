@@ -12,7 +12,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return [
     { url: absoluteUrl(routes.home()), priority: 1 },
     { url: absoluteUrl(routes.catalog()), priority: 0.8 },
+    { url: absoluteUrl(routes.directory()), priority: 0.8 },
     { url: absoluteUrl(routes.about()), priority: 0.4 },
+    { url: absoluteUrl(routes.credits()), priority: 0.2 },
     ...CATEGORIES.map((category) => ({
       url: absoluteUrl(routes.category(category.id)),
       priority: 0.6,

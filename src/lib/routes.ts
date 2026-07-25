@@ -9,7 +9,9 @@ export const routes = {
   catalog: () => '/tools',
   tool: (toolId: string) => `/tools/${toolId}`,
   category: (categoryId: ToolCategoryId) => `/categories/${categoryId}`,
+  directory: () => '/directory',
   about: () => '/about',
+  credits: () => '/credits',
 } as const;
 
 /** Absolute origin, used for canonical URLs, sitemap and social metadata. */

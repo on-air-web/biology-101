@@ -1,54 +1,63 @@
 import Link from 'next/link';
 import { ArrowUpRight } from 'lucide-react';
 import type { ToolMeta } from '@/lib/tools/types';
+import { ACCESS_LABELS } from '@/lib/tools/types';
 import { routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 
-/**
- * Planned tools render as a non-interactive card. They are shown so the
- * catalog reflects the real shape of the product, but a card that looks
- * clickable and is not would be worse than omitting them.
- */
+function Tag({ children, tone = 'neutral' }: { children: React.ReactNode; tone?: string }) {
+  return (
+    <span
+      className={cn(
+        'lbl rounded-[3px] border px-1.5 py-px',
+        tone === 'built' && 'border-gfp-600 text-gfp-400',
+        tone === 'ext' && 'border-link-700 text-link-400',
+        tone === 'warn' && 'border-amber-700 text-amber-400',
+        tone === 'neutral' && 'border-line text-ink-faint',
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
 export function ToolCard({ tool }: { tool: ToolMeta }) {
-  const isPlanned = tool.status === 'planned';
+  const planned = tool.status === 'planned';
+  const external = tool.kind === 'external';
 
   const body = (
     <>
-      <div className="flex items-start justify-between gap-3">
-        <h3 className="text-base font-semibold text-ink">{tool.name}</h3>
-        {isPlanned ? (
-          <span className="shrink-0 text-label font-medium tracking-[0.09em] text-ink-muted uppercase">
-            Planned
-          </span>
+      <div className="flex items-center gap-2">
+        <strong className="text-[13.5px] font-semibold">{tool.name}</strong>
+        {planned ? (
+          <span className="lbl ml-auto flex-none">Planned</span>
+        ) : external ? (
+          <ArrowUpRight className="ml-auto size-3.5 flex-none text-ink-faint" aria-hidden />
+        ) : null}
+      </div>
+      <p className="mt-1.5 text-[12.5px] leading-[1.45] text-ink-muted">{tool.summary}</p>
+      <div className="mt-2.5 flex flex-wrap gap-1.5">
+        {external ? <Tag tone="ext">External</Tag> : <Tag tone="built">Built in</Tag>}
+        {tool.external ? <Tag>{tool.external.provider}</Tag> : null}
+        {tool.external ? (
+          <Tag tone={tool.external.access === 'free' ? 'neutral' : 'warn'}>
+            {ACCESS_LABELS[tool.external.access]}
+          </Tag>
         ) : (
-          <ArrowUpRight
-            className="size-4 shrink-0 text-ink-faint transition-colors group-hover:text-brand"
-            aria-hidden
-          />
+          <Tag>No upload</Tag>
         )}
       </div>
-      <p className="mt-1.5 text-sm text-ink-muted">{tool.summary}</p>
     </>
   );
 
-  const shared = 'block rounded-lab-lg border p-4 h-full';
-
-  if (isPlanned) {
-    return (
-      <div className={cn(shared, 'border-dashed border-line bg-transparent')}>
-        {body}
-        <span className="sr-only">Not yet available</span>
-      </div>
-    );
+  if (planned) {
+    return <div className="h-full rounded-lab-lg border border-dashed border-line p-3">{body}</div>;
   }
 
   return (
     <Link
       href={routes.tool(tool.id)}
-      className={cn(
-        shared,
-        'group border-line bg-surface-raised transition-colors hover:border-line-strong hover:bg-surface-sunken',
-      )}
+      className="block h-full rounded-lab-lg border border-line bg-surface p-3 transition-all hover:-translate-y-px hover:border-line-strong hover:bg-hover"
     >
       {body}
     </Link>

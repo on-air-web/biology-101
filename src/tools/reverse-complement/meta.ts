@@ -21,6 +21,8 @@ export const reverseComplementMeta: ToolMeta = {
     'primer',
   ],
   kind: 'builtin',
+  tier: 'pick',
+  reviewStatus: 'reviewed',
   status: 'stable',
   computeLocation: 'client',
   citations: [

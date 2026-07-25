@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { TOOLS, getTool } from './registry';
+import { TOOLS, getRoutableTools, getTool } from './registry';
 import { TOOL_CATEGORIES } from './types';
 import { CATEGORIES } from './categories';
 
@@ -64,17 +64,35 @@ describe('tool registry', () => {
     }
   });
 
-  it('requires every external tool to carry judgement, not just a link', () => {
+  it('requires every external tool to identify its provider and URL', () => {
     for (const tool of TOOLS) {
       if (tool.kind !== 'external') continue;
       expect(tool.external, `${tool.id} is external but has no external block`).toBeDefined();
       expect(tool.external?.url, `${tool.id} has no URL`).toMatch(/^https:\/\//);
       expect(tool.external?.provider.length, `${tool.id} has no provider`).toBeGreaterThan(1);
-      // The whole point of indexing someone else's tool.
+    }
+  });
+
+  it('requires curated picks to carry judgement, not just a link', () => {
+    for (const tool of TOOLS) {
+      // A pick is a recommendation, and a recommendation with no reason is a
+      // bookmark. Listed entries are exempt: they exist for coverage.
+      if (tool.kind !== 'external' || tool.tier !== 'pick') continue;
       expect(
         tool.external?.useWhen.length,
-        `${tool.id} has no "use when" guidance`,
+        `${tool.id} is a pick but has no "use when" guidance`,
       ).toBeGreaterThan(40);
+    }
+  });
+
+  it('keeps pipeline tools out of the routed set', () => {
+    const routable = new Set(getRoutableTools().map((tool) => tool.id));
+    for (const tool of TOOLS) {
+      if (tool.kind !== 'pipeline') continue;
+      expect(tool.pipeline, `${tool.id} is a pipeline but has no pipeline block`).toBeDefined();
+      expect(routable.has(tool.id), `${tool.id} is a pipeline and must not be routable`).toBe(
+        false,
+      );
     }
   });
 

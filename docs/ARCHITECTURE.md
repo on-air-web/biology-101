@@ -222,3 +222,41 @@ load.
 
 Parallax lives in `Band`. The motion is slight on purpose, and disabled entirely
 under `prefers-reduced-motion`.
+
+## Tasks
+
+A tool directory answers "what is X?". People arrive asking "how do I compare
+two groups?", often without knowing the name of the thing that would answer
+them. `src/lib/tasks/` is that second index, and it is where the judgement
+lives — the tools are endpoints.
+
+Granularity is deliberately broad: "Compare two groups", not "Compare two
+groups with unequal variances at small n". Sub-cases belong inside one good
+page rather than spread across forty thin ones.
+
+Every task must resolve its referenced tool ids, recommend at least one tool,
+and carry substantial guidance. `tasks/registry.test.ts` enforces all three.
+
+## Tiers, kinds and review status
+
+Three fields decide how an entry behaves:
+
+- **`tier`** — `pick` or `listed`. A pick carries `useWhen` and the build fails
+  without it; a listed entry needs only a description. Recommendations stay
+  expensive, coverage stays cheap, and an entry is promoted the day someone
+  has a real opinion about it.
+- **`kind`** — `builtin`, `external` or `pipeline`. Pipelines (GATK, GROMACS,
+  ggplot2, ComplexHeatmap) are searchable but generate no page: nobody opens
+  them, so a stub is worse than being named in context inside a task guide.
+- **`reviewStatus`** — `reviewed` or `drafted`. Drafted guidance is labelled as
+  such on the page rather than quietly presented as authoritative. We should
+  not be writing confident advice about clinical variant interpretation
+  without saying who checked it.
+
+## Statistics: a standing editorial rule
+
+No bare p-values. Anything this site builds or recommends for hypothesis
+testing reports an effect size and an interval alongside the p-value, and
+prefers tools that show the distribution over tools that draw a bar. This is
+the Ladder applied to statistics, and it is a deliberate position on a real
+problem in the literature rather than a style preference.

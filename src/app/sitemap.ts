@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next';
-import { getLiveTools } from '@/lib/tools/registry';
+import { getRoutableTools } from '@/lib/tools/registry';
+import { TASKS } from '@/lib/tasks/registry';
 import { CATEGORIES } from '@/lib/tools/categories';
 import { absoluteUrl, routes } from '@/lib/routes';
 
@@ -19,7 +20,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       url: absoluteUrl(routes.category(category.id)),
       priority: 0.6,
     })),
-    ...getLiveTools().map((tool) => ({
+    ...TASKS.map((task) => ({
+      url: absoluteUrl(routes.task(task.id)),
+      lastModified: task.reviewedAt,
+      priority: 0.85,
+    })),
+    ...getRoutableTools().map((tool) => ({
       url: absoluteUrl(routes.tool(tool.id)),
       lastModified: tool.reviewedAt,
       priority: 0.9,

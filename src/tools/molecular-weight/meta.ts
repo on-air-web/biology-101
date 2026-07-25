@@ -22,6 +22,8 @@ export const molecularWeightMeta: ToolMeta = {
     'hydrate',
   ],
   kind: 'builtin',
+  tier: 'pick',
+  reviewStatus: 'reviewed',
   status: 'stable',
   computeLocation: 'client',
   citations: [

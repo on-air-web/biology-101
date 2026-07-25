@@ -21,6 +21,8 @@ export const serialDilutionMeta: ToolMeta = {
     'standard curve',
   ],
   kind: 'builtin',
+  tier: 'pick',
+  reviewStatus: 'reviewed',
   status: 'stable',
   computeLocation: 'client',
   citations: [

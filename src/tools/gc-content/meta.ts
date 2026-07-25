@@ -21,6 +21,8 @@ export const gcContentMeta: ToolMeta = {
     'gc skew',
   ],
   kind: 'builtin',
+  tier: 'pick',
+  reviewStatus: 'reviewed',
   status: 'stable',
   computeLocation: 'client',
   citations: [

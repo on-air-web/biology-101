@@ -23,6 +23,8 @@ export const molarityMeta: ToolMeta = {
     'mass to concentration',
   ],
   kind: 'builtin',
+  tier: 'pick',
+  reviewStatus: 'reviewed',
   status: 'stable',
   computeLocation: 'client',
   citations: [

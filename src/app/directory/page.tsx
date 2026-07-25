@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { ToolCard } from '@/components/catalog/tool-card';
 import { CATEGORIES } from '@/lib/tools/categories';
-import { getExternalTools } from '@/lib/tools/registry';
+import { byTier, getExternalTools } from '@/lib/tools/registry';
 import { absoluteUrl, routes } from '@/lib/routes';
 
 export const metadata: Metadata = {
@@ -29,16 +30,36 @@ export default function DirectoryPage() {
       {CATEGORIES.map((category) => {
         const inCategory = tools.filter((tool) => tool.category === category.id);
         if (inCategory.length === 0) return null;
+        const { picks, listed } = byTier(inCategory);
         return (
           <section key={category.id} className="mt-9">
             <h2 className="text-[15px] font-semibold tracking-[-0.01em]">{category.name}</h2>
             <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {inCategory.map((tool) => (
+              {picks.map((tool) => (
                 <li key={tool.id}>
                   <ToolCard tool={tool} />
                 </li>
               ))}
             </ul>
+            {/* Listed entries exist for coverage. They are visually quieter
+                because we are not recommending them, only acknowledging them. */}
+            {listed.length > 0 ? (
+              <>
+                <p className="lbl mt-4">Also in this category</p>
+                <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1.5">
+                  {listed.map((tool) => (
+                    <li key={tool.id}>
+                      <Link
+                        href={routes.tool(tool.id)}
+                        className="text-[12.5px] text-ink-muted hover:text-ink"
+                      >
+                        {tool.name}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : null}
           </section>
         );
       })}

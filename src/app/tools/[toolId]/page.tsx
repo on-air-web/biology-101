@@ -9,7 +9,7 @@ import { ToolJsonLd } from '@/components/seo/json-ld';
 import { FavouriteButton } from '@/components/tools/favourite-button';
 import { RecordVisit } from '@/components/tools/record-visit';
 import { getCategory } from '@/lib/tools/categories';
-import { getLiveTools, getTool } from '@/lib/tools/registry';
+import { getRoutableTools, getTool } from '@/lib/tools/registry';
 import { absoluteUrl, routes } from '@/lib/routes';
 
 interface PageProps {
@@ -18,7 +18,7 @@ interface PageProps {
 
 /** Pre-renders one HTML file per live tool at build time. */
 export function generateStaticParams() {
-  return getLiveTools().map((tool) => ({ toolId: tool.id }));
+  return getRoutableTools().map((tool) => ({ toolId: tool.id }));
 }
 
 /**
@@ -46,7 +46,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function ToolPage({ params }: PageProps) {
   const { toolId } = await params;
   const tool = getTool(toolId);
-  if (!tool || tool.status === 'planned') notFound();
+  if (!tool || tool.status === 'planned' || tool.kind === 'pipeline') notFound();
 
   const category = getCategory(tool.category);
 

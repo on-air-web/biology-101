@@ -101,8 +101,45 @@ export interface ExternalInfo {
   inputNote?: string;
 }
 
-/** Hosted here and run in the browser, or linked out to someone else. */
-export type ToolKind = 'builtin' | 'external';
+/** Where a pipeline tool is documented, since it has no page of its own. */
+export interface PipelineInfo {
+  provider: string;
+  url: string;
+  /** Language or environment: R package, Python, C++ binary, Nextflow. */
+  environment: string;
+}
+
+/**
+ * How a tool reaches the user.
+ *
+ *   builtin  — runs here, in the browser
+ *   external — a site we link to, with its own page
+ *   pipeline — command-line or cluster software (GATK, GROMACS, Salmon).
+ *              Searchable so the name resolves, but generates no page: nobody
+ *              "opens" these, and a stub page nobody can act on is worse than
+ *              being named in context inside a task guide.
+ */
+export type ToolKind = 'builtin' | 'external' | 'pipeline';
+
+/**
+ * Curated pick, or simply listed.
+ *
+ * A pick carries real judgement and must fill in `useWhen` — the build fails
+ * without it. A listed entry needs only a description. This is what lets the
+ * catalogue be both opinionated and reasonably complete: recommendations stay
+ * expensive, coverage stays cheap, and an entry is promoted the day someone
+ * has an actual opinion about it.
+ */
+export type ToolTier = 'pick' | 'listed';
+
+/**
+ * Whether a human with relevant expertise has checked the guidance.
+ *
+ * Drafted entries are shown as such rather than quietly presented as
+ * authoritative. Neither of us should be writing confident advice about
+ * clinical variant interpretation without saying who checked it.
+ */
+export type ReviewStatus = 'reviewed' | 'drafted';
 
 export type ToolStatus = 'stable' | 'beta' | 'planned';
 
@@ -130,8 +167,16 @@ export interface ToolMeta {
    */
   keywords: string[];
   kind: ToolKind;
+  /** Curated pick or plain listing. Built-in tools are always picks. */
+  tier: ToolTier;
+  /** Defaults to 'drafted' where absent. */
+  reviewStatus?: ReviewStatus;
   /** Present exactly when kind is 'external'. */
   external?: ExternalInfo;
+  /** Present exactly when kind is 'pipeline'. */
+  pipeline?: PipelineInfo;
+  /** Tasks this tool is an answer to. */
+  taskIds?: string[];
   status: ToolStatus;
   computeLocation: ComputeLocation;
   /** At least one required for any tool that computes a scientific result. */

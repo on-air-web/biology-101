@@ -29,6 +29,8 @@ export const translateMeta: ToolMeta = {
     'genetic code',
   ],
   kind: 'builtin',
+  tier: 'pick',
+  reviewStatus: 'reviewed',
   status: 'stable',
   computeLocation: 'client',
   citations: [NCBI_CITATION],

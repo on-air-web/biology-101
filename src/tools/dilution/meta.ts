@@ -20,6 +20,8 @@ export const dilutionMeta: ToolMeta = {
     'how much stock',
   ],
   kind: 'builtin',
+  tier: 'pick',
+  reviewStatus: 'reviewed',
   status: 'stable',
   computeLocation: 'client',
   citations: [

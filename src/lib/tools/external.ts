@@ -28,6 +28,8 @@ function external(
   return {
     ...rest,
     kind: 'external',
+    tier: 'pick',
+    reviewStatus: 'drafted',
     external: { provider, url, access, licenseNote, useWhen, inputNote },
     status: 'stable',
     computeLocation: 'server',

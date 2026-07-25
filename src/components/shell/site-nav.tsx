@@ -80,6 +80,12 @@ export function SiteNav() {
             />
           </button>
           <Link
+            href={routes.tasks()}
+            className="flex h-[34px] items-center rounded-lab px-2.5 text-[13.5px] text-ink-muted transition-colors hover:bg-hover hover:text-ink"
+          >
+            Tasks
+          </Link>
+          <Link
             href={routes.directory()}
             className="flex h-[34px] items-center rounded-lab px-2.5 text-[13.5px] text-ink-muted transition-colors hover:bg-hover hover:text-ink"
           >
@@ -145,6 +151,9 @@ export function SiteNav() {
         </div>
 
         <div className="mx-auto max-w-[1120px] border-t border-line px-5 py-3 md:hidden">
+          <Link href={routes.tasks()} className="mr-4 text-[13px] text-ink-muted">
+            Tasks
+          </Link>
           <Link href={routes.directory()} className="mr-4 text-[13px] text-ink-muted">
             Directory
           </Link>

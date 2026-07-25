@@ -1,0 +1,176 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ---------------------------------------------------------------------------
+ * Palette
+ *
+ * Derived from laboratory materials rather than abstract brand colour.
+ *   coomassie — the stain-blue of a dyed protein gel. Primary.
+ *   phenol    — cell culture media. Amber is the colour of acidifying media,
+ *               so it already carries "check this" meaning to the audience.
+ *   rose      — healthy media at physiological pH. Reserved for saved state.
+ *   slate     — destained gel background. Surfaces and rules.
+ * ------------------------------------------------------------------------- */
+@theme {
+  --color-coomassie-50: #eef1fa;
+  --color-coomassie-100: #d8dff2;
+  --color-coomassie-200: #b0bde4;
+  --color-coomassie-300: #7f92cf;
+  --color-coomassie-400: #4f66b3;
+  --color-coomassie-500: #1f3378;
+  --color-coomassie-600: #1a2b66;
+  --color-coomassie-700: #152252;
+  --color-coomassie-800: #101a3e;
+  --color-coomassie-900: #0b122b;
+
+  --color-phenol-100: #fbeed6;
+  --color-phenol-300: #f0c476;
+  --color-phenol-500: #d98b1f;
+  --color-phenol-700: #9a5f10;
+
+  --color-rose-lab-100: #f9dfe7;
+  --color-rose-lab-500: #c8446b;
+  --color-rose-lab-700: #93304e;
+
+  --color-slate-lab-50: #f6f7fa;
+  --color-slate-lab-100: #eef0f6;
+  --color-slate-lab-200: #dfe3ec;
+  --color-slate-lab-300: #c3c9d8;
+  --color-slate-lab-500: #5a6072;
+  --color-slate-lab-700: #343a4a;
+  --color-slate-lab-900: #12151f;
+
+  --color-signal-ok: #1c7a5c;
+  --color-signal-warn: #d98b1f;
+  --color-signal-error: #b3261e;
+
+  /* Type ------------------------------------------------------------------ */
+  --font-display: 'Archivo', 'Archivo Fallback', system-ui, sans-serif;
+  --font-sans: 'IBM Plex Sans', 'IBM Plex Sans Fallback', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'IBM Plex Mono Fallback', ui-monospace, monospace;
+
+  --text-display-lg: 3.25rem;
+  --text-display-lg--line-height: 1.02;
+  --text-display-lg--letter-spacing: -0.02em;
+  --text-display: 2.25rem;
+  --text-display--line-height: 1.08;
+  --text-display--letter-spacing: -0.015em;
+  --text-label: 0.6875rem;
+  --text-label--line-height: 1.2;
+  --text-label--letter-spacing: 0.09em;
+
+  --radius-lab: 0.375rem;
+  --radius-lab-lg: 0.625rem;
+}
+
+/* Semantic layer. Components reference only these, never the raw palette, so
+ * dark mode and any future theming stay a single-file change. */
+@theme inline {
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-brand: var(--brand);
+  --color-brand-ink: var(--brand-ink);
+}
+
+:root {
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-sunken: #eef0f6;
+  --ink: #12151f;
+  --ink-muted: #5a6072;
+  --ink-faint: #c3c9d8;
+  --line: #dfe3ec;
+  --line-strong: #c3c9d8;
+  --brand: #1f3378;
+  --brand-ink: #ffffff;
+
+  color-scheme: light;
+}
+
+.dark {
+  /* Not black. A desaturated navy keeps the Coomassie relationship intact and
+   * is easier on the eyes during long benchside sessions. */
+  --surface: #0e1220;
+  --surface-raised: #161c2e;
+  --surface-sunken: #0a0d18;
+  --ink: #e8eaf2;
+  --ink-muted: #9aa2b8;
+  --ink-faint: #5a6072;
+  --line: #242b40;
+  --line-strong: #333c56;
+  --brand: #7f92cf;
+  --brand-ink: #0b122b;
+
+  color-scheme: dark;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--surface);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Display type is set expanded and tight — instrument-panel lettering.
+   * Archivo carries a real width axis, so this is one font file, not two. */
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-variation-settings: 'wdth' 112;
+    font-weight: 600;
+  }
+
+  /* Every number in this product is tabular. Digits must not reflow as values
+   * change, or the result field jitters while the user types. */
+  input[type='number'],
+  output {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /* The Ladder: the signature provenance strip. Tick marks are drawn with a
+   * repeating gradient rather than markup, so it stays one element at any width
+   * and costs nothing to render. */
+  .ladder-rule {
+    height: 7px;
+    background-image: repeating-linear-gradient(
+      to right,
+      var(--line-strong) 0 1px,
+      transparent 1px 9px
+    );
+    -webkit-mask-image: linear-gradient(to right, #000 0%, #000 82%, transparent 100%);
+    mask-image: linear-gradient(to right, #000 0%, #000 82%, transparent 100%);
+  }
+}

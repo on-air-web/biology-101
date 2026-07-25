@@ -1,0 +1,73 @@
+import { describe, expect, it } from 'vitest';
+import { TOOLS, getTool } from './registry';
+import { TOOL_CATEGORIES } from './types';
+import { CATEGORIES } from './categories';
+
+/**
+ * These tests are the enforcement mechanism for the project's standards.
+ * A tool that is uncited, mis-slugged or cross-linked to nothing fails CI
+ * rather than quietly shipping.
+ */
+describe('tool registry', () => {
+  it('has unique ids', () => {
+    const ids = TOOLS.map((tool) => tool.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('uses url-safe kebab-case ids', () => {
+    for (const tool of TOOLS) {
+      expect(tool.id, `${tool.id} is not kebab-case`).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/);
+    }
+  });
+
+  it('assigns every tool to a known category', () => {
+    for (const tool of TOOLS) {
+      expect(TOOL_CATEGORIES).toContain(tool.category);
+    }
+  });
+
+  it('defines every category exactly once', () => {
+    expect(CATEGORIES.map((c) => c.id).sort()).toEqual([...TOOL_CATEGORIES].sort());
+  });
+
+  it('cites a source for every shipped tool', () => {
+    for (const tool of TOOLS) {
+      if (tool.status === 'planned') continue;
+      expect(tool.citations.length, `${tool.id} has no citation`).toBeGreaterThan(0);
+    }
+  });
+
+  it('gives every citation a resolvable reference', () => {
+    for (const tool of TOOLS) {
+      for (const citation of tool.citations) {
+        expect(
+          Boolean(citation.doi ?? citation.url),
+          `${tool.id}: citation "${citation.label}" has neither DOI nor URL`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it('marks exactly one default when a tool offers multiple models', () => {
+    for (const tool of TOOLS) {
+      if (!tool.models?.length) continue;
+      const defaults = tool.models.filter((model) => model.isDefault);
+      expect(defaults.length, `${tool.id} must have exactly one default model`).toBe(1);
+    }
+  });
+
+  it('resolves every related tool id', () => {
+    for (const tool of TOOLS) {
+      for (const relatedId of tool.relatedToolIds ?? []) {
+        expect(getTool(relatedId), `${tool.id} links to missing tool ${relatedId}`).toBeDefined();
+      }
+    }
+  });
+
+  it('gives every tool searchable keywords and a summary', () => {
+    for (const tool of TOOLS) {
+      expect(tool.keywords.length, `${tool.id} has no keywords`).toBeGreaterThan(0);
+      expect(tool.summary.length, `${tool.id} summary is too short`).toBeGreaterThan(10);
+    }
+  });
+});

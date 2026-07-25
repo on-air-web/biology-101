@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Band } from '@/components/brand/band';
+import { Band, BandGraphic, BandImage } from '@/components/brand/band';
 import { MolecularField } from '@/components/brand/molecular-field';
 import { ToolCard } from '@/components/catalog/tool-card';
 import { CATEGORIES } from '@/lib/tools/categories';
@@ -30,14 +30,7 @@ export default function HomePage() {
       <Band
         speed={0.2}
         className="flex min-h-[62vh] items-end md:min-h-[74vh]"
-        layer={
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img
-            src={IMAGES.zebrafish.src}
-            alt={IMAGES.zebrafish.alt}
-            className="block h-auto w-full"
-          />
-        }
+        layer={<BandImage src={IMAGES.zebrafish.src} alt={IMAGES.zebrafish.alt} />}
       >
         <div className="mx-auto w-full max-w-[1120px] px-5 pb-11">
           <h1 className="text-[clamp(40px,9vw,80px)] leading-[0.96] font-bold tracking-[-0.045em]">
@@ -110,7 +103,11 @@ export default function HomePage() {
       <Band
         speed={0.14}
         className="mt-11 flex min-h-[210px] items-end border-t border-line"
-        layer={<MolecularField />}
+        layer={
+          <BandGraphic>
+            <MolecularField />
+          </BandGraphic>
+        }
       >
         <div className="mx-auto w-full max-w-[1120px] px-5 pb-5">
           <h2 className="text-[22px] font-bold tracking-[-0.025em]">Laboratory calculators</h2>
@@ -134,14 +131,7 @@ export default function HomePage() {
       <Band
         speed={0.14}
         className="mt-11 flex min-h-[210px] items-end border-t border-line"
-        layer={
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img
-            src={IMAGES.microtubules.src}
-            alt={IMAGES.microtubules.alt}
-            className="block h-auto w-full"
-          />
-        }
+        layer={<BandImage src={IMAGES.microtubules.src} alt={IMAGES.microtubules.alt} />}
       >
         <div className="mx-auto w-full max-w-[1120px] px-5 pb-5">
           <h2 className="text-[22px] font-bold tracking-[-0.025em]">

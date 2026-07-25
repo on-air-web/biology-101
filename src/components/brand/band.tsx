@@ -4,10 +4,13 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
 /**
- * A full-bleed image band with parallax.
+ * A full-bleed band with parallax.
+ *
+ * The layer is inset slightly beyond the band on both vertical edges so the
+ * parallax has room to travel without exposing a hard edge.
  *
  * The motion is deliberately slight. Heavy parallax reads as a marketing site,
- * and this needs to read as an instrument. Disabled entirely under
+ * and this needs to read as an instrument. Disabled under
  * prefers-reduced-motion.
  */
 export function Band({
@@ -36,7 +39,7 @@ export function Band({
         const viewport = window.innerHeight;
         if (rect.bottom > -300 && rect.top < viewport + 300) {
           const offset = (rect.top + rect.height / 2 - viewport / 2) * speed;
-          element.style.transform = `translate3d(-50%, calc(-50% + ${offset.toFixed(1)}px), 0)`;
+          element.style.transform = `translate3d(0, ${offset.toFixed(1)}px, 0)`;
         }
       }
       ticking = false;
@@ -59,14 +62,43 @@ export function Band({
 
   return (
     <div ref={bandRef} className={cn('relative isolate overflow-hidden bg-black', className)}>
-      <div
-        ref={layerRef}
-        className="absolute top-1/2 left-1/2 w-[118%] -translate-x-1/2 -translate-y-1/2 will-change-transform"
-      >
+      <div ref={layerRef} className="absolute inset-x-0 -inset-y-[12%] will-change-transform">
         {layer}
       </div>
       <div className="band-veil pointer-events-none absolute inset-0" />
       <div className="relative z-[3]">{children}</div>
     </div>
   );
+}
+
+/**
+ * Photographic band layer.
+ *
+ * Fitting is art-directed by viewport, because one crop cannot serve both:
+ *
+ *   Narrow — `contain`. The whole organism stays visible and the surrounding
+ *            black merges into the page, since these images are shot on black.
+ *            Cropping to fill a tall phone band would cut the specimen in half.
+ *   Wide   — `cover`. The band is wider than it is tall, close to the image's
+ *            own proportions, so filling it edge to edge costs almost nothing
+ *            and avoids the letterboxing that looks broken on a large screen.
+ *
+ * The earlier version sized the image to 118% of the viewport width regardless
+ * of aspect, which on a wide monitor scaled it far past the band height and
+ * showed a magnified slice.
+ */
+export function BandImage({ src, alt }: { src: string; alt: string }) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt={alt}
+      className="h-full w-full object-contain object-center md:object-cover"
+    />
+  );
+}
+
+/** Generated (SVG) band layer. Always fills, nothing to crop badly. */
+export function BandGraphic({ children }: { children: ReactNode }) {
+  return <div className="flex h-full w-full items-center justify-center">{children}</div>;
 }

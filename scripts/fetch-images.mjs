@@ -18,16 +18,17 @@ const ASSETS = [
   {
     out: 'zebrafish-vasculature.jpg',
     url: 'https://nigms.nih.gov/sites/nigms/files/image-and-video-gallery/stiched_fish_blending_high_contrast.png',
-    width: 1600,
-    /** Fraction of source height to keep, centred. Crops empty black margins
-     *  without cropping the organism itself. */
-    keep: 0.62,
+    width: 2000,
+    /** Fraction of source height to keep, centred. Crops the empty black
+     *  margins without cropping the organism, and lands near the proportions
+     *  of a wide band so `cover` loses almost nothing. */
+    keep: 0.44,
   },
   {
     out: 'microtubules-storm.jpg',
     url: 'https://nigms.nih.gov/sites/nigms/files/image-and-video-gallery/MicrotubulesinMonkeyCells.png',
-    width: 1400,
-    keep: 0.55,
+    width: 1800,
+    keep: 0.42,
   },
 ];
 

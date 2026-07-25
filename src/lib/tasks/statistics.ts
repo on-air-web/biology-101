@@ -30,7 +30,7 @@ export const STATISTICS_TASKS: readonly Task[] = [
       'If you measured several dishes from each of three independent experiments, your n is three, ' +
       'not the number of dishes. Pooling technical replicates as though they were independent is ' +
       'the single most common way biology papers report significance that is not there.',
-    toolIds: ['estimation-stats', 'jamovi', 'graphpad-prism', 'r-project'],
+    toolIds: ['t-test', 'estimation-stats', 'jamovi', 'graphpad-prism', 'r-project'],
     pipelineIds: ['statsmodels'],
     keywords: [
       't-test',

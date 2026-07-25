@@ -21,6 +21,8 @@ const TOOL_COMPONENTS: Record<string, ComponentType> = {
   'reverse-complement': dynamic(() => import('@/tools/reverse-complement/ui')),
   'gc-content': dynamic(() => import('@/tools/gc-content/ui')),
   translate: dynamic(() => import('@/tools/translate/ui')),
+  't-test': dynamic(() => import('@/tools/t-test/ui')),
+  'multiple-testing': dynamic(() => import('@/tools/multiple-testing/ui')),
 };
 
 export function ToolBody({ toolId }: { toolId: string }) {

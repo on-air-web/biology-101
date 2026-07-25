@@ -86,14 +86,6 @@ export const PLANNED_TOOLS: readonly ToolMeta[] = [
     keywords: ['unit converter', 'convert', 'units', 'si prefix', 'micro', 'milli', 'nano'],
   }),
   planned({
-    id: 't-test',
-    name: 't-test',
-    category: 'statistics',
-    summary: 'Compare two groups and report the p-value with effect size.',
-    description: "Run paired, unpaired or Welch's t-test on pasted or uploaded data.",
-    keywords: ['t test', 'ttest', 'p value', 'significance', 'welch', 'paired', 'statistics'],
-  }),
-  planned({
     id: 'fasta-viewer',
     name: 'FASTA viewer',
     category: 'bioinformatics',

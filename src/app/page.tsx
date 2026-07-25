@@ -1,10 +1,12 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Band, BandGraphic, BandImage } from '@/components/brand/band';
+import { DistributionField } from '@/components/brand/distribution-field';
+import { SectionBand } from '@/components/home/section-band';
 import { MolecularField } from '@/components/brand/molecular-field';
 import { ToolCard } from '@/components/catalog/tool-card';
 import { CATEGORIES } from '@/lib/tools/categories';
-import { TOOLS, getBuiltinTools, getExternalTools, getTool } from '@/lib/tools/registry';
+import { TOOLS, byTier, getBuiltinTools, getExternalTools, getTool } from '@/lib/tools/registry';
 import { IMAGES } from '@/lib/images';
 import { absoluteUrl, routes } from '@/lib/routes';
 
@@ -22,8 +24,18 @@ export default function HomePage() {
   const builtin = getBuiltinTools();
   const externalTools = getExternalTools();
   const featured = FEATURED.map((id) => getTool(id)).filter((tool) => tool !== undefined);
-  const calculators = TOOLS.filter((tool) => tool.category === 'lab-calculators');
-  const cellTools = TOOLS.filter((tool) => tool.category === 'cell-biology');
+  /** Picks first, capped. The band's arrow leads to the complete list. */
+  function preview(categoryId: string, limit = 4) {
+    const inCategory = TOOLS.filter(
+      (tool) => tool.category === categoryId && tool.kind !== 'pipeline',
+    );
+    const { picks, listed } = byTier(inCategory);
+    return { shown: [...picks, ...listed].slice(0, limit), total: inCategory.length };
+  }
+
+  const calculators = preview('lab-calculators');
+  const statistics = preview('statistics');
+  const cellTools = preview('cell-biology');
 
   return (
     <>
@@ -100,27 +112,21 @@ export default function HomePage() {
         </section>
       </div>
 
-      <Band
-        speed={0.14}
-        className="mt-11 flex min-h-[210px] items-end border-t border-line"
+      <SectionBand
+        title="Laboratory calculators"
+        description="Dilutions, molarity, buffers and reagent maths. All of it runs here, and every result shows the formula behind it."
+        href={routes.category('lab-calculators')}
+        count={calculators.total}
         layer={
           <BandGraphic>
             <MolecularField />
           </BandGraphic>
         }
-      >
-        <div className="mx-auto w-full max-w-[1120px] px-5 pb-5">
-          <h2 className="text-[22px] font-bold tracking-[-0.025em]">Laboratory calculators</h2>
-          <p className="mt-1.5 max-w-[56ch] text-[13.5px] text-ink-muted">
-            Dilutions, molarity, buffers and reagent maths. All of it runs here, and every result
-            shows the formula behind it.
-          </p>
-        </div>
-      </Band>
+      />
 
       <div className="mx-auto max-w-[1120px] px-5">
         <ul className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          {calculators.map((tool) => (
+          {calculators.shown.map((tool) => (
             <li key={tool.id}>
               <ToolCard tool={tool} />
             </li>
@@ -128,25 +134,39 @@ export default function HomePage() {
         </ul>
       </div>
 
-      <Band
-        speed={0.14}
-        className="mt-11 flex min-h-[210px] items-end border-t border-line"
-        layer={<BandImage src={IMAGES.microtubules.src} alt={IMAGES.microtubules.alt} />}
-      >
-        <div className="mx-auto w-full max-w-[1120px] px-5 pb-5">
-          <h2 className="text-[22px] font-bold tracking-[-0.025em]">
-            Cell &amp; developmental biology
-          </h2>
-          <p className="mt-1.5 max-w-[56ch] text-[13.5px] text-ink-muted">
-            Growth rates, viability and seeding density, plus the databases people actually use for
-            model organisms.
-          </p>
-        </div>
-      </Band>
+      <SectionBand
+        title="Statistics and plotting"
+        description="Choosing the right test, and showing the data honestly once you have. Effect sizes and distributions, not bare p-values."
+        href={routes.category('statistics')}
+        count={statistics.total}
+        layer={
+          <BandGraphic>
+            <DistributionField />
+          </BandGraphic>
+        }
+      />
 
       <div className="mx-auto max-w-[1120px] px-5">
         <ul className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          {cellTools.map((tool) => (
+          {statistics.shown.map((tool) => (
+            <li key={tool.id}>
+              <ToolCard tool={tool} />
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <SectionBand
+        title="Cell &amp; developmental biology"
+        description="Growth rates, viability and seeding density, plus the databases people actually use for model organisms."
+        href={routes.category('cell-biology')}
+        count={cellTools.total}
+        layer={<BandImage src={IMAGES.microtubules.src} alt={IMAGES.microtubules.alt} />}
+      />
+
+      <div className="mx-auto max-w-[1120px] px-5">
+        <ul className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          {cellTools.shown.map((tool) => (
             <li key={tool.id}>
               <ToolCard tool={tool} />
             </li>

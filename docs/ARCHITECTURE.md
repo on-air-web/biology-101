@@ -260,3 +260,25 @@ testing reports an effect size and an interval alongside the p-value, and
 prefers tools that show the distribution over tools that draw a bar. This is
 the Ladder applied to statistics, and it is a deliberate position on a real
 problem in the literature rather than a style preference.
+
+## Statistics implementation
+
+`src/lib/stats/` holds the numerical layer: log Γ, the regularised incomplete
+beta function, and the t and normal distributions built on them. Everything
+statistical resolves to these, so they are implemented rather than
+approximated, and tested against values anyone can check — tabulated critical
+values, and a two-tailed p verified against direct numerical integration of the
+t density to fifteen significant figures.
+
+Test return shapes make the editorial rule structural rather than advisory.
+`TwoGroupResult` requires `difference`, `ci` and `effectSize`; `p` sits
+alongside them. A function that could return a p-value without an effect size
+would make it easy to report one without the other, which is the failure this
+domain exists to prevent. The interface follows the same order: the estimate at
+34px, the interval beneath it, the effect size after that, and the test
+statistic and p-value last in small grey monospace.
+
+Welch's is the default t-test rather than Student's — it costs almost nothing
+when variances match and protects against inflated error when they do not.
+Hedges' g is reported rather than Cohen's d, since the small-sample correction
+vanishes at large n and there is no case for the uncorrected version.

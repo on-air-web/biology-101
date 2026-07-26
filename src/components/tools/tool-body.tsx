@@ -28,6 +28,8 @@ const TOOL_COMPONENTS: Record<string, ComponentType> = {
   contingency: dynamic(() => import('@/tools/contingency/ui')),
   power: dynamic(() => import('@/tools/power/ui')),
   'buffer-preparation': dynamic(() => import('@/tools/buffer/ui')),
+  'centrifuge-rcf-rpm': dynamic(() => import('@/tools/centrifuge-rcf-rpm/ui')),
+  od600: dynamic(() => import('@/tools/od600/ui')),
 };
 
 export function ToolBody({ toolId }: { toolId: string }) {

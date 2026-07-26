@@ -27,14 +27,6 @@ function planned(
 
 export const PLANNED_TOOLS: readonly ToolMeta[] = [
   planned({
-    id: 'od600',
-    name: 'OD600 calculator',
-    category: 'cell-biology',
-    summary: 'Convert optical density to cell density and plan culture dilutions.',
-    description: 'Estimate cells per millilitre from OD600 and calculate the dilution to a target.',
-    keywords: ['od600', 'optical density', 'cell density', 'bacterial growth', 'spectrophotometer'],
-  }),
-  planned({
     id: 'cell-doubling-time',
     name: 'Doubling time calculator',
     category: 'cell-biology',

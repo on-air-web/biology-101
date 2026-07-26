@@ -9,7 +9,7 @@
  * bug where a value is scaled twice, or not at all, on one code path.
  */
 
-export type Dimension = 'mass' | 'volume' | 'amount' | 'concentration';
+export type Dimension = 'mass' | 'volume' | 'amount' | 'concentration' | 'length';
 
 export interface Unit {
   id: string;
@@ -25,6 +25,7 @@ export const CANONICAL_UNIT: Record<Dimension, string> = {
   volume: 'L',
   amount: 'mol',
   concentration: 'M',
+  length: 'm',
 };
 
 const UNIT_LIST: readonly Unit[] = [
@@ -48,6 +49,12 @@ const UNIT_LIST: readonly Unit[] = [
   { id: 'uM', label: 'µM', dimension: 'concentration', factor: 1e-6 },
   { id: 'mM', label: 'mM', dimension: 'concentration', factor: 1e-3 },
   { id: 'M', label: 'M', dimension: 'concentration', factor: 1 },
+
+  { id: 'nm', label: 'nm', dimension: 'length', factor: 1e-9 },
+  { id: 'um', label: 'µm', dimension: 'length', factor: 1e-6 },
+  { id: 'mm', label: 'mm', dimension: 'length', factor: 1e-3 },
+  { id: 'cm', label: 'cm', dimension: 'length', factor: 1e-2 },
+  { id: 'm', label: 'm', dimension: 'length', factor: 1 },
 ] as const;
 
 const BY_ID = new Map(UNIT_LIST.map((unit) => [unit.id, unit]));

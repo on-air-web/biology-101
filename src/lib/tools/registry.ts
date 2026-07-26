@@ -13,6 +13,8 @@ import { correlationMeta } from '@/tools/correlation/meta';
 import { contingencyMeta } from '@/tools/contingency/meta';
 import { powerMeta } from '@/tools/power/meta';
 import { bufferMeta } from '@/tools/buffer/meta';
+import { od600Meta } from '@/tools/od600/meta';
+import { centrifugeMeta } from '@/tools/centrifuge-rcf-rpm/meta';
 import { PLANNED_TOOLS } from './planned';
 import { EXTERNAL_TOOLS } from './external';
 import { STATISTICS_TOOLS } from './statistics-tools';
@@ -36,6 +38,8 @@ export const TOOLS: readonly ToolMeta[] = [
   contingencyMeta,
   powerMeta,
   bufferMeta,
+  centrifugeMeta,
+  od600Meta,
   ...EXTERNAL_TOOLS,
   ...STATISTICS_TOOLS,
   ...PLANNED_TOOLS,

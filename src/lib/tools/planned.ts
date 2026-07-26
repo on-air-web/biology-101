@@ -35,16 +35,6 @@ export const PLANNED_TOOLS: readonly ToolMeta[] = [
     keywords: ['doubling time', 'growth rate', 'population doubling', 'generation time'],
   }),
   planned({
-    id: 'melting-temperature',
-    name: 'Melting temperature calculator',
-    category: 'molecular-biology',
-    summary: 'Estimate primer Tm, with the choice of model made explicit.',
-    description:
-      'Calculate oligonucleotide melting temperature using basic, salt-adjusted or ' +
-      'nearest-neighbour models, with the salt and primer concentrations you actually used.',
-    keywords: ['melting temperature', 'tm', 'primer tm', 'annealing', 'nearest neighbour', 'oligo'],
-  }),
-  planned({
     id: 'unit-converter',
     name: 'Unit converter',
     category: 'lab-utilities',

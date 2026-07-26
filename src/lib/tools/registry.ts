@@ -17,6 +17,7 @@ import { od600Meta } from '@/tools/od600/meta';
 import { centrifugeMeta } from '@/tools/centrifuge-rcf-rpm/meta';
 import { proteinParametersMeta } from '@/tools/protein-parameters/meta';
 import { structureAlignmentMeta } from '@/tools/structure-alignment/meta';
+import { meltingTemperatureMeta } from '@/tools/melting-temperature/meta';
 import { hemocytometerMeta } from '@/tools/hemocytometer/meta';
 import { cellSeedingMeta } from '@/tools/cell-seeding/meta';
 import { PLANNED_TOOLS } from './planned';
@@ -46,6 +47,7 @@ export const TOOLS: readonly ToolMeta[] = [
   od600Meta,
   proteinParametersMeta,
   structureAlignmentMeta,
+  meltingTemperatureMeta,
   hemocytometerMeta,
   cellSeedingMeta,
   ...EXTERNAL_TOOLS,

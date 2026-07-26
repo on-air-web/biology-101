@@ -212,6 +212,61 @@ export function chiSquareP(x: number, df: number): number {
   return 1 - chiSquareCdf(x, df);
 }
 
+/**
+ * Inverse chi-square, by bisection on the CDF.
+ *
+ * Same reasoning as tInv and normalInv: called once per result, and a method
+ * that cannot diverge is worth more than speed. The upper bracket grows from
+ * the distribution's own scale rather than a fixed constant, since df here can
+ * be twice a cell count and run into the thousands.
+ */
+export function chiSquareInv(p: number, df: number): number {
+  if (p <= 0 || p >= 1) throw new Error('Probability must lie strictly between 0 and 1.');
+  if (df <= 0) throw new Error('Degrees of freedom must be greater than zero.');
+
+  let high = Math.max(df * 2, 10);
+  while (chiSquareCdf(high, df) < p) high *= 2;
+
+  let low = 0;
+  for (let index = 0; index < 200; index += 1) {
+    const mid = (low + high) / 2;
+    if (chiSquareCdf(mid, df) < p) low = mid;
+    else high = mid;
+  }
+  return (low + high) / 2;
+}
+
+/**
+ * Exact (Garwood) confidence interval for a Poisson count.
+ *
+ * Counting is a Poisson process, so a count of n carries an uncertainty of
+ * roughly √n whether or not anyone reports it. The exact interval inverts the
+ * Poisson tail probabilities through their chi-square identity:
+ *
+ *   lower = ½·χ²(α/2, 2n)      upper = ½·χ²(1−α/2, 2n+2)
+ *
+ * The normal approximation n ± z√n is used instead almost everywhere, and it
+ * is visibly wrong at the counts people actually work with — it can even go
+ * negative below about n = 4. This does not, and costs one bisection.
+ */
+export function poissonExactInterval(
+  count: number,
+  confidence = 0.95,
+): { lower: number; upper: number } {
+  if (!Number.isInteger(count) || count < 0) {
+    throw new Error('A Poisson count must be a non-negative whole number.');
+  }
+  if (confidence <= 0 || confidence >= 1) {
+    throw new Error('Confidence must lie strictly between 0 and 1.');
+  }
+
+  const alpha = 1 - confidence;
+  // Observing zero excludes no small rate, so the interval is one-sided there.
+  const lower = count === 0 ? 0 : chiSquareInv(alpha / 2, 2 * count) / 2;
+  const upper = chiSquareInv(1 - alpha / 2, 2 * count + 2) / 2;
+  return { lower, upper };
+}
+
 /** P(F <= f) for the F distribution with df1 and df2. */
 export function fCdf(f: number, df1: number, df2: number): number {
   if (f <= 0) return 0;

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   chiSquareCdf,
+  chiSquareInv,
   chiSquareP,
+  poissonExactInterval,
   fCdf,
   fP,
   incompleteBeta,
@@ -129,5 +131,101 @@ describe('F distribution', () => {
     expect(fCdf(0, 3, 10)).toBe(0);
     expect(fCdf(1e6, 3, 10)).toBeCloseTo(1, 6);
     expect(fCdf(2, 4, 8) + fP(2, 4, 8)).toBeCloseTo(1, 10);
+  });
+});
+
+/**
+ * Poisson probabilities, summed directly from the pmf. A second implementation
+ * whose only shared assumption with the chi-square route is arithmetic, which
+ * is what makes it usable as a reference here.
+ */
+function poissonCdf(k: number, lambda: number): number {
+  let term = Math.exp(-lambda);
+  let sum = term;
+  for (let index = 1; index <= k; index += 1) {
+    term *= lambda / index;
+    sum += term;
+  }
+  return sum;
+}
+
+describe('chiSquareInv', () => {
+  /**
+   * Chi-square with two degrees of freedom is exponential with mean 2, so its
+   * CDF is 1 − e^(−x/2) and the quantile is −2·ln(1−p) in closed form. Nothing
+   * is looked up.
+   */
+  it('matches the closed form at two degrees of freedom', () => {
+    for (const p of [0.025, 0.1, 0.5, 0.9, 0.975, 0.999]) {
+      expect(chiSquareInv(p, 2)).toBeCloseTo(-2 * Math.log(1 - p), 8);
+    }
+  });
+
+  it('round-trips through the CDF', () => {
+    for (const df of [1, 3, 8, 30, 200, 2000]) {
+      for (const p of [0.01, 0.25, 0.5, 0.95, 0.99]) {
+        expect(chiSquareCdf(chiSquareInv(p, df), df), `df=${df} p=${p}`).toBeCloseTo(p, 8);
+      }
+    }
+  });
+
+  it('increases with probability and with degrees of freedom', () => {
+    expect(chiSquareInv(0.9, 10)).toBeGreaterThan(chiSquareInv(0.5, 10));
+    expect(chiSquareInv(0.9, 20)).toBeGreaterThan(chiSquareInv(0.9, 10));
+  });
+
+  it('rejects probabilities outside the open unit interval', () => {
+    expect(() => chiSquareInv(0, 4)).toThrow();
+    expect(() => chiSquareInv(1, 4)).toThrow();
+    expect(() => chiSquareInv(0.5, 0)).toThrow();
+  });
+});
+
+describe('poissonExactInterval', () => {
+  /**
+   * The defining property, checked against the pmf sums above rather than a
+   * published table: the bounds are the rates at which the observed count sits
+   * exactly at the tail probability.
+   */
+  it('places each bound at its own tail probability', () => {
+    for (const count of [1, 5, 10, 47, 200]) {
+      const { lower, upper } = poissonExactInterval(count, 0.95);
+      // P(X >= count | lower) = 0.025
+      expect(1 - poissonCdf(count - 1, lower), `lower at n=${count}`).toBeCloseTo(0.025, 8);
+      // P(X <= count | upper) = 0.025
+      expect(poissonCdf(count, upper), `upper at n=${count}`).toBeCloseTo(0.025, 8);
+    }
+  });
+
+  /** With zero observed, P(X = 0 | upper) = e^(−upper) = 0.025, so upper = −ln(0.025). */
+  it('is one-sided at a count of zero', () => {
+    const { lower, upper } = poissonExactInterval(0, 0.95);
+    expect(lower).toBe(0);
+    expect(upper).toBeCloseTo(-Math.log(0.025), 8);
+  });
+
+  it('brackets the count and tightens in relative terms as it grows', () => {
+    const small = poissonExactInterval(10);
+    const large = poissonExactInterval(1000);
+    expect(small.lower).toBeLessThan(10);
+    expect(small.upper).toBeGreaterThan(10);
+    // Relative width falls roughly as 1/sqrt(n): about 62% at 10, 12% at 1000.
+    expect((small.upper - small.lower) / 10).toBeGreaterThan((large.upper - large.lower) / 1000);
+  });
+
+  /** The normal approximation goes negative below about four; this must not. */
+  it('never returns a negative rate', () => {
+    for (let count = 0; count <= 6; count += 1) {
+      expect(poissonExactInterval(count).lower, `n=${count}`).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it('widens with confidence and rejects impossible input', () => {
+    expect(poissonExactInterval(20, 0.99).upper).toBeGreaterThan(
+      poissonExactInterval(20, 0.95).upper,
+    );
+    expect(() => poissonExactInterval(-1)).toThrow();
+    expect(() => poissonExactInterval(2.5)).toThrow();
+    expect(() => poissonExactInterval(10, 1)).toThrow();
   });
 });

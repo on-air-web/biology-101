@@ -8,6 +8,7 @@
     "node": ">=20.0.0"
   },
   "scripts": {
+    "brand": "node scripts/make-brand.mjs",
     "build": "next build",
     "check:bundle": "node scripts/check-bundle.mjs",
     "dev": "next dev",

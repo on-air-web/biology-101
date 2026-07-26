@@ -8,14 +8,13 @@ import { CATEGORIES } from '@/lib/tools/categories';
 import { TOOLS } from '@/lib/tools/registry';
 import { routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
+import { Mark } from '@/components/brand/mark';
 import { SearchField } from './search-field';
 
 function Wordmark() {
   return (
-    <Link href={routes.home()} className="mr-2 flex flex-none items-center gap-2.5">
-      <span className="grid size-[23px] place-items-center rounded-md bg-gfp-400 text-[11.5px] font-bold text-black">
-        B
-      </span>
+    <Link href={routes.home()} className="mr-2 flex flex-none items-center gap-2">
+      <Mark className="size-[25px] flex-none text-gfp-400" />
       <span className="text-[15.5px] font-bold tracking-[-0.015em] whitespace-nowrap">
         Biology&nbsp;101
       </span>

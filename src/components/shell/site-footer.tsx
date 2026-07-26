@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Mark } from '@/components/brand/mark';
 import { CATEGORIES } from '@/lib/tools/categories';
 import { routes } from '@/lib/routes';
 import { SITE } from '@/lib/site';
@@ -8,7 +9,9 @@ export function SiteFooter() {
     <footer className="mt-24 border-t border-line bg-surface-sunken">
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:grid-cols-2 sm:px-6 lg:grid-cols-4">
         <div className="sm:col-span-2 lg:col-span-2">
-          <p className="text-[15px] font-bold tracking-[-0.015em]">
+          {/* One mark, two placements. The footer used to set its own. */}
+          <p className="flex items-center gap-2 text-[15px] font-bold tracking-[-0.015em]">
+            <Mark className="size-[22px] flex-none text-gfp-400 [--mark-gap:var(--sunken)]" />
             Biology<span className="text-gfp-400">101</span>
           </p>
           <p className="mt-3 max-w-sm text-sm text-ink-muted">

@@ -33,6 +33,7 @@ const TOOL_COMPONENTS: Record<string, ComponentType> = {
   hemocytometer: dynamic(() => import('@/tools/hemocytometer/ui')),
   'cell-seeding': dynamic(() => import('@/tools/cell-seeding/ui')),
   'protein-parameters': dynamic(() => import('@/tools/protein-parameters/ui')),
+  'structure-alignment': dynamic(() => import('@/tools/structure-alignment/ui')),
 };
 
 export function ToolBody({ toolId }: { toolId: string }) {

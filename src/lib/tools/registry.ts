@@ -15,6 +15,7 @@ import { powerMeta } from '@/tools/power/meta';
 import { bufferMeta } from '@/tools/buffer/meta';
 import { od600Meta } from '@/tools/od600/meta';
 import { centrifugeMeta } from '@/tools/centrifuge-rcf-rpm/meta';
+import { proteinParametersMeta } from '@/tools/protein-parameters/meta';
 import { hemocytometerMeta } from '@/tools/hemocytometer/meta';
 import { cellSeedingMeta } from '@/tools/cell-seeding/meta';
 import { PLANNED_TOOLS } from './planned';
@@ -42,6 +43,7 @@ export const TOOLS: readonly ToolMeta[] = [
   bufferMeta,
   centrifugeMeta,
   od600Meta,
+  proteinParametersMeta,
   hemocytometerMeta,
   cellSeedingMeta,
   ...EXTERNAL_TOOLS,

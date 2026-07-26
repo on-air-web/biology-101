@@ -45,22 +45,6 @@ export const PLANNED_TOOLS: readonly ToolMeta[] = [
     keywords: ['melting temperature', 'tm', 'primer tm', 'annealing', 'nearest neighbour', 'oligo'],
   }),
   planned({
-    id: 'protein-parameters',
-    name: 'Peptide analyser',
-    category: 'protein',
-    summary: 'Molecular weight, isoelectric point and extinction coefficient for a peptide.',
-    description:
-      'Compute physicochemical parameters for a protein or peptide from its amino acid sequence.',
-    keywords: [
-      'peptide',
-      'protein mw',
-      'isoelectric point',
-      'pi',
-      'extinction coefficient',
-      'a280',
-    ],
-  }),
-  planned({
     id: 'unit-converter',
     name: 'Unit converter',
     category: 'lab-utilities',

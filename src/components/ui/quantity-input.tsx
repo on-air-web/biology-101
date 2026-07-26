@@ -1,8 +1,25 @@
 'use client';
 
-import { useId } from 'react';
 import { type Dimension, unitsFor } from '@/lib/units';
 import { cn } from '@/lib/utils';
+
+/**
+ * Field ids are derived from a caller-supplied name rather than `useId`.
+ *
+ * `useId` numbers a field by its position in the React tree, and tools are
+ * mounted through `next/dynamic` in tool-body.tsx, which adds a lazy boundary
+ * on the client that the server render does not have. The counters therefore
+ * diverge and every field hydrates with a mismatched id, htmlFor and
+ * aria-describedby — a red error on all fifteen tool pages, loud enough to
+ * bury a real one.
+ *
+ * A name is stable across both renders, and `Segmented` already asks for one,
+ * so this is the convention the codebase had anyway. The prefix keeps these
+ * clear of the hand-written ids on the plain selects in some tools.
+ */
+function fieldId(name: string): string {
+  return `field-${name}`;
+}
 
 export interface Quantity {
   /** Raw text, kept as typed. Storing a parsed number here would fight the
@@ -12,6 +29,8 @@ export interface Quantity {
 }
 
 interface QuantityInputProps {
+  /** Stable, unique within one tool. Becomes the field's id. */
+  name: string;
   label: string;
   dimension: Dimension;
   value: Quantity;
@@ -22,6 +41,7 @@ interface QuantityInputProps {
 }
 
 export function QuantityInput({
+  name,
   label,
   dimension,
   value,
@@ -30,7 +50,7 @@ export function QuantityInput({
   error,
   autoFocus,
 }: QuantityInputProps) {
-  const inputId = useId();
+  const inputId = fieldId(name);
   const hintId = `${inputId}-hint`;
   const units = unitsFor(dimension);
 
@@ -100,6 +120,7 @@ export function QuantityInput({
 
 /** A plain numeric field for dimensionless quantities such as molar mass. */
 export function NumberInput({
+  name,
   label,
   value,
   onChange,
@@ -107,6 +128,8 @@ export function NumberInput({
   hint,
   error,
 }: {
+  /** Stable, unique within one tool. Becomes the field's id. */
+  name: string;
   label: string;
   value: string;
   onChange: (value: string) => void;
@@ -114,7 +137,7 @@ export function NumberInput({
   hint?: string;
   error?: string;
 }) {
-  const inputId = useId();
+  const inputId = fieldId(name);
   const hintId = `${inputId}-hint`;
 
   return (

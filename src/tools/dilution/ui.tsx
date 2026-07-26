@@ -129,6 +129,7 @@ export default function DilutionTool() {
       <div className="mt-6 grid gap-5 sm:grid-cols-2">
         {solveFor !== 'stockConcentration' ? (
           <QuantityInput
+            name="stock-concentration"
             label="Stock concentration (C₁)"
             dimension="concentration"
             value={stockConcentration}
@@ -138,6 +139,7 @@ export default function DilutionTool() {
 
         {solveFor !== 'stockVolume' ? (
           <QuantityInput
+            name="stock-volume"
             label="Stock volume (V₁)"
             dimension="volume"
             value={stockVolume}
@@ -147,6 +149,7 @@ export default function DilutionTool() {
 
         {solveFor !== 'finalConcentration' ? (
           <QuantityInput
+            name="final-concentration"
             label="Final concentration (C₂)"
             dimension="concentration"
             value={finalConcentration}
@@ -156,6 +159,7 @@ export default function DilutionTool() {
 
         {solveFor !== 'finalVolume' ? (
           <QuantityInput
+            name="final-volume"
             label="Final volume (V₂)"
             dimension="volume"
             value={finalVolume}

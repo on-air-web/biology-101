@@ -88,6 +88,7 @@ export default function MolarityTool() {
 
       <div className="mt-6 grid gap-5 sm:grid-cols-2">
         <NumberInput
+          name="molar-mass"
           label="Molar mass"
           value={molarMass}
           onChange={setMolarMass}
@@ -96,11 +97,18 @@ export default function MolarityTool() {
         />
 
         {solveFor !== 'mass' ? (
-          <QuantityInput label="Mass" dimension="mass" value={mass} onChange={setMass} />
+          <QuantityInput
+            name="mass"
+            label="Mass"
+            dimension="mass"
+            value={mass}
+            onChange={setMass}
+          />
         ) : null}
 
         {solveFor !== 'concentration' ? (
           <QuantityInput
+            name="concentration"
             label="Concentration"
             dimension="concentration"
             value={concentration}
@@ -109,7 +117,13 @@ export default function MolarityTool() {
         ) : null}
 
         {solveFor !== 'volume' ? (
-          <QuantityInput label="Volume" dimension="volume" value={volume} onChange={setVolume} />
+          <QuantityInput
+            name="volume"
+            label="Volume"
+            dimension="volume"
+            value={volume}
+            onChange={setVolume}
+          />
         ) : null}
       </div>
 

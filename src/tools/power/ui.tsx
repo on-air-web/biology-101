@@ -86,6 +86,7 @@ export default function PowerTool() {
       <div className="mt-4 grid gap-4 sm:grid-cols-3">
         <div>
           <NumberInput
+            name="effect-size"
             label="Effect size (d)"
             value={effect}
             onChange={setEffect}
@@ -107,6 +108,7 @@ export default function PowerTool() {
 
         {mode === 'size' ? (
           <NumberInput
+            name="target-power"
             label="Target power"
             value={targetPower}
             onChange={setTargetPower}
@@ -114,13 +116,14 @@ export default function PowerTool() {
           />
         ) : (
           <NumberInput
+            name="sample-size"
             label={design === 'two-sample' ? 'n per group' : 'n'}
             value={n}
             onChange={setN}
           />
         )}
 
-        <NumberInput label="Alpha" value={alpha} onChange={setAlpha} />
+        <NumberInput name="alpha" label="Alpha" value={alpha} onChange={setAlpha} />
       </div>
 
       {error ? (

@@ -104,15 +104,17 @@ export default function BufferTool() {
           ) : null}
         </div>
 
-        <NumberInput label="Target pH" value={ph} onChange={setPh} />
+        <NumberInput name="target-ph" label="Target pH" value={ph} onChange={setPh} />
 
         <QuantityInput
+          name="concentration"
           label="Concentration"
           dimension="concentration"
           value={concentration}
           onChange={setConcentration}
         />
         <QuantityInput
+          name="final-volume"
           label="Final volume"
           dimension="volume"
           value={volume}
@@ -120,6 +122,7 @@ export default function BufferTool() {
         />
 
         <NumberInput
+          name="prepare-at"
           label="Adjust pH at"
           value={prepareAt}
           onChange={setPrepareAt}
@@ -127,6 +130,7 @@ export default function BufferTool() {
           hint="The temperature of the meter when you titrate."
         />
         <NumberInput
+          name="use-at"
           label="Use at"
           value={useAt}
           onChange={setUseAt}

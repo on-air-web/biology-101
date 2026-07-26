@@ -55,12 +55,14 @@ export default function SerialDilutionTool() {
     <div className="rounded-lab-lg border border-line bg-surface-raised p-5 sm:p-6">
       <div className="grid gap-5 sm:grid-cols-2">
         <QuantityInput
+          name="stock-concentration"
           label="Stock concentration"
           dimension="concentration"
           value={stock}
           onChange={setStock}
         />
         <QuantityInput
+          name="volume-per-tube"
           label="Volume per tube"
           dimension="volume"
           value={perTube}
@@ -68,12 +70,13 @@ export default function SerialDilutionTool() {
           hint="Total volume in each tube after mixing."
         />
         <NumberInput
+          name="dilution-factor"
           label="Dilution factor per step"
           value={fold}
           onChange={setFold}
           suffix="fold"
         />
-        <NumberInput label="Number of steps" value={steps} onChange={setSteps} />
+        <NumberInput name="steps" label="Number of steps" value={steps} onChange={setSteps} />
       </div>
 
       {error ? (

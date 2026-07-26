@@ -31,7 +31,7 @@ export function SectionBand({
       className="mt-11 flex min-h-[210px] items-end border-t border-line"
       layer={layer}
     >
-      <div className="mx-auto flex w-full max-w-[1120px] flex-wrap items-end justify-between gap-x-6 gap-y-3 px-5 pb-5">
+      <div className="on-photo mx-auto flex w-full max-w-[1120px] flex-wrap items-end justify-between gap-x-6 gap-y-3 px-5 pb-5">
         <div className="min-w-0">
           <h2 className="text-[22px] font-bold tracking-[-0.025em]">{title}</h2>
           <p className="mt-1.5 max-w-[56ch] text-[13.5px] text-ink-muted">{description}</p>

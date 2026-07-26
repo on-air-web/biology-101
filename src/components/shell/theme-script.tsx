@@ -11,7 +11,10 @@ const script = `
     var stored = localStorage.getItem('b101-theme');
     var dark = stored ? stored === 'dark'
       : window.matchMedia('(prefers-color-scheme: dark)').matches;
-    if (dark) document.documentElement.classList.add('dark');
+    // globals.css puts the dark values on :root and the light ones on .light,
+    // so light is the class to add. Adding 'dark' matched no rule at all,
+    // which left the toggle inert and light mode unreachable.
+    if (!dark) document.documentElement.classList.add('light');
   } catch (e) {}
 })();
 `;

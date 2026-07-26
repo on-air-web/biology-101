@@ -80,6 +80,24 @@
   color-scheme: light;
 }
 
+/*
+ * Content sitting on a photographic band.
+ *
+ * Those images are dark in both themes, so the ink over them cannot follow the
+ * theme — in light mode it would put near-black type on a near-black
+ * micrograph. Pinning the dark values here rather than hard-coding colours on
+ * each element keeps the band working with the same utilities as everywhere
+ * else.
+ */
+.on-photo {
+  --ink: #f2f3f5;
+  --ink-mid: #c9cbd1;
+  --ink-dim: #9a9ca3;
+  --line: #2f2f2f;
+  --line-strong: #4a4a4a;
+  color: var(--ink);
+}
+
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;

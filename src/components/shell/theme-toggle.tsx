@@ -9,13 +9,14 @@ export function ThemeToggle({ className }: { className?: string }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setIsDark(document.documentElement.classList.contains('dark'));
+    // Dark is the base theme on :root, so light is the class that exists.
+    setIsDark(!document.documentElement.classList.contains('light'));
     setMounted(true);
   }, []);
 
   function toggle() {
     const next = !isDark;
-    document.documentElement.classList.toggle('dark', next);
+    document.documentElement.classList.toggle('light', !next);
     try {
       localStorage.setItem('b101-theme', next ? 'dark' : 'light');
     } catch {

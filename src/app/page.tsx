@@ -44,7 +44,7 @@ export default function HomePage() {
         className="flex min-h-[62vh] items-end md:min-h-[74vh]"
         layer={<BandImage src={IMAGES.zebrafish.src} alt={IMAGES.zebrafish.alt} />}
       >
-        <div className="mx-auto w-full max-w-[1120px] px-5 pb-11">
+        <div className="on-photo mx-auto w-full max-w-[1120px] px-5 pb-11">
           <h1 className="text-[clamp(40px,9vw,80px)] leading-[0.96] font-bold tracking-[-0.045em]">
             Biology&nbsp;101
           </h1>

@@ -1,3 +1,4 @@
+import { ArrowUpRight } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getLiveTools } from '@/lib/tools/registry';
@@ -88,27 +89,6 @@ export default function AboutPage() {
         ) : null}
       </div>
 
-      <h2 className="mt-12 text-xl">Who makes this</h2>
-      <div className="mt-3 space-y-4 text-ink-muted">
-        <p>
-          Biology 101 is built and maintained by{' '}
-          <a
-            href={SITE.author.url}
-            rel="noreferrer"
-            className="text-brand underline decoration-line-strong underline-offset-2"
-          >
-            {SITE.author.name}
-          </a>
-          . It is not backed by an institution or a company, which is why there is no sign-up, no
-          tracking and nothing to sell you.
-        </p>
-        <p>
-          That also means the guidance here has been written by one person rather than reviewed by a
-          panel. Pages carrying advice say whether they have been reviewed, and most currently say
-          drafted. Corrections are welcome and are the fastest way to make the site better.
-        </p>
-      </div>
-
       <h2 className="mt-12 text-xl">What&rsquo;s next</h2>
       <div className="mt-3 space-y-4 text-ink-muted">
         <p>
@@ -125,6 +105,42 @@ export default function AboutPage() {
           </Link>
         </p>
       </div>
+
+      {/*
+        The author credit closes the page. It sits after everything else on
+        purpose: the argument for the site should stand on its own, and the
+        byline is what you read once you have decided you care who made it.
+      */}
+      <footer className="mt-16 overflow-hidden rounded-lab-lg border border-line-strong bg-surface-raised">
+        <div className="p-6 sm:p-8">
+          <p className="text-label font-medium tracking-[0.09em] text-gfp-400 uppercase">
+            Written and built by
+          </p>
+          <p className="mt-2 text-[clamp(30px,6vw,44px)] leading-[1.05] font-bold tracking-[-0.03em]">
+            {SITE.author.name}
+          </p>
+          <p className="mt-3.5 text-sm leading-[1.7] text-ink-muted">
+            Biology 101 is not backed by an institution or a company, which is why there is no
+            sign-up, no tracking and nothing to sell you. It also means the guidance here has been
+            written by one person rather than reviewed by a panel — pages carrying advice say
+            whether they have been reviewed, and most currently say drafted. Corrections are welcome
+            and are the fastest way to make the site better.
+          </p>
+
+          {/* Full width on a phone, sized to its label on anything wider. */}
+          <a
+            href={SITE.author.url}
+            rel="noreferrer"
+            className="group mt-6 inline-flex h-12 w-full items-center justify-center gap-2.5 rounded-lab bg-gfp-400 px-6 text-[14.5px] font-semibold text-black transition-colors hover:bg-gfp-300 sm:w-auto"
+          >
+            Visit my website
+            <ArrowUpRight
+              className="size-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+              aria-hidden
+            />
+          </a>
+        </div>
+      </footer>
     </div>
   );
 }

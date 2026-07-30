@@ -70,7 +70,14 @@ export function SiteFooter() {
             independently.
           </p>
           <p className="text-sm text-ink-faint">
-            Made with love for the community by Diganta Chaudhury
+            Made with love for the community by{' '}
+            <a
+              href={SITE.author.url}
+              rel="noreferrer"
+              className="underline decoration-line-strong underline-offset-2 hover:text-ink"
+            >
+              {SITE.author.name}
+            </a>
           </p>
         </div>
       </div>

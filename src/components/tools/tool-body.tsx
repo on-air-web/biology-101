@@ -36,6 +36,9 @@ const TOOL_COMPONENTS: Record<string, ComponentType> = {
   'structure-alignment': dynamic(() => import('@/tools/structure-alignment/ui')),
   'melting-temperature': dynamic(() => import('@/tools/melting-temperature/ui')),
   'recipe-scaler': dynamic(() => import('@/tools/recipe-scaler/ui')),
+  'nucleic-acid-quant': dynamic(() => import('@/tools/nucleic-acid-quant/ui')),
+  'antibiotic-stock': dynamic(() => import('@/tools/antibiotic-stock/ui')),
+  'agarose-gel': dynamic(() => import('@/tools/agarose-gel/ui')),
 };
 
 export function ToolBody({ toolId }: { toolId: string }) {

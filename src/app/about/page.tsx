@@ -88,6 +88,27 @@ export default function AboutPage() {
         ) : null}
       </div>
 
+      <h2 className="mt-12 text-xl">Who makes this</h2>
+      <div className="mt-3 space-y-4 text-ink-muted">
+        <p>
+          Biology 101 is built and maintained by{' '}
+          <a
+            href={SITE.author.url}
+            rel="noreferrer"
+            className="text-brand underline decoration-line-strong underline-offset-2"
+          >
+            {SITE.author.name}
+          </a>
+          . It is not backed by an institution or a company, which is why there is no sign-up, no
+          tracking and nothing to sell you.
+        </p>
+        <p>
+          That also means the guidance here has been written by one person rather than reviewed by a
+          panel. Pages carrying advice say whether they have been reviewed, and most currently say
+          drafted. Corrections are welcome and are the fastest way to make the site better.
+        </p>
+      </div>
+
       <h2 className="mt-12 text-xl">What&rsquo;s next</h2>
       <div className="mt-3 space-y-4 text-ink-muted">
         <p>

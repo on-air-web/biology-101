@@ -22,23 +22,50 @@ const SOLVE_OPTIONS = [
   { value: 'stockConcentration', label: 'Stock conc.' },
 ] as const satisfies readonly { value: DilutionSolveFor; label: string }[];
 
-const OUTPUT: Record<DilutionSolveFor, { label: string; dimension: Dimension; formula: string }> = {
-  stockVolume: { label: 'Stock volume to take', dimension: 'volume', formula: 'V₁ = C₂V₂ ÷ C₁' },
-  finalVolume: { label: 'Final volume', dimension: 'volume', formula: 'V₂ = C₁V₁ ÷ C₂' },
+const OUTPUT: Record<
+  DilutionSolveFor,
+  { label: string; isConcentration: boolean; formula: string }
+> = {
+  stockVolume: {
+    label: 'Stock volume to take',
+    isConcentration: false,
+    formula: 'V₁ = C₂V₂ ÷ C₁',
+  },
+  finalVolume: { label: 'Final volume', isConcentration: false, formula: 'V₂ = C₁V₁ ÷ C₂' },
   finalConcentration: {
     label: 'Final concentration',
-    dimension: 'concentration',
+    isConcentration: true,
     formula: 'C₂ = C₁V₁ ÷ V₂',
   },
   stockConcentration: {
     label: 'Stock concentration',
-    dimension: 'concentration',
+    isConcentration: true,
     formula: 'C₁ = C₂V₂ ÷ V₁',
   },
 };
 
+/**
+ * C₁V₁ = C₂V₂ holds in whatever unit the two concentrations share, so the only
+ * requirement is that both sides are the same kind. Molar and mass-per-volume
+ * are offered as a pair rather than mixed in one selector: picking µg/mL
+ * against mM would need a molar mass, and the relation does not have one.
+ */
+const KINDS = [
+  { value: 'concentration', label: 'Molar' },
+  { value: 'mass-concentration', label: 'Mass / volume' },
+] as const satisfies readonly { value: Dimension; label: string }[];
+
+type ConcentrationKind = (typeof KINDS)[number]['value'];
+
+/** Sensible starting units when the kind is switched. */
+const DEFAULTS: Record<ConcentrationKind, { stock: string; final: string }> = {
+  concentration: { stock: 'M', final: 'mM' },
+  'mass-concentration': { stock: 'mg_mL', final: 'ug_mL' },
+};
+
 export default function DilutionTool() {
   const [solveFor, setSolveFor] = useState<DilutionSolveFor>('stockVolume');
+  const [kind, setKind] = useState<ConcentrationKind>('concentration');
   const [stockConcentration, setStockConcentration] = useState<Quantity>({ raw: '1', unitId: 'M' });
   const [stockVolume, setStockVolume] = useState<Quantity>({ raw: '', unitId: 'uL' });
   const [finalConcentration, setFinalConcentration] = useState<Quantity>({
@@ -48,6 +75,18 @@ export default function DilutionTool() {
   const [finalVolume, setFinalVolume] = useState<Quantity>({ raw: '10', unitId: 'mL' });
 
   const output = OUTPUT[solveFor];
+  const outputDimension: Dimension = output.isConcentration ? kind : 'volume';
+
+  /**
+   * Switching kind has to move the units too. Leaving 'M' selected while the
+   * selector lists mg/mL would show a value the dropdown cannot represent, and
+   * the result would be scaled against the wrong dimension.
+   */
+  function switchKind(next: ConcentrationKind) {
+    setKind(next);
+    setStockConcentration((current) => ({ ...current, unitId: DEFAULTS[next].stock }));
+    setFinalConcentration((current) => ({ ...current, unitId: DEFAULTS[next].final }));
+  }
 
   const { display, detail, error } = useMemo(() => {
     const fields = {
@@ -82,7 +121,7 @@ export default function DilutionTool() {
 
     try {
       const canonical = solveDilution(canonicalInput, solveFor);
-      const scaled = autoScale(canonical, output.dimension);
+      const scaled = autoScale(canonical, outputDimension);
 
       // The number people actually need next is how much diluent to add.
       let extra: string | undefined;
@@ -107,14 +146,7 @@ export default function DilutionTool() {
         error: caught instanceof DilutionInputError ? caught.message : 'Could not calculate.',
       };
     }
-  }, [
-    solveFor,
-    stockConcentration,
-    stockVolume,
-    finalConcentration,
-    finalVolume,
-    output.dimension,
-  ]);
+  }, [solveFor, stockConcentration, stockVolume, finalConcentration, finalVolume, outputDimension]);
 
   return (
     <div className="rounded-lab-lg border border-line bg-surface-raised p-5 sm:p-6">
@@ -126,12 +158,22 @@ export default function DilutionTool() {
         onChange={setSolveFor}
       />
 
+      <div className="mt-5">
+        <Segmented
+          name="dilution-kind"
+          label="Concentration in"
+          options={KINDS}
+          value={kind}
+          onChange={switchKind}
+        />
+      </div>
+
       <div className="mt-6 grid gap-5 sm:grid-cols-2">
         {solveFor !== 'stockConcentration' ? (
           <QuantityInput
             name="stock-concentration"
             label="Stock concentration (C₁)"
-            dimension="concentration"
+            dimension={kind}
             value={stockConcentration}
             onChange={setStockConcentration}
           />
@@ -151,7 +193,7 @@ export default function DilutionTool() {
           <QuantityInput
             name="final-concentration"
             label="Final concentration (C₂)"
-            dimension="concentration"
+            dimension={kind}
             value={finalConcentration}
             onChange={setFinalConcentration}
           />

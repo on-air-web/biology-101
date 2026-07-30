@@ -31,7 +31,7 @@ export default function MolarityTool() {
 
   const output = OUTPUT[solveFor];
 
-  const { display, error } = useMemo(() => {
+  const { display, detail, error } = useMemo(() => {
     const molarMassValue = parseNumber(molarMass);
     const parsed = {
       mass: parseNumber(mass.raw),
@@ -45,7 +45,7 @@ export default function MolarityTool() {
       (field) => field !== solveFor,
     );
     if (molarMassValue === undefined || required.some((field) => parsed[field] === undefined)) {
-      return { display: undefined, error: undefined };
+      return { display: undefined, detail: undefined, error: undefined };
     }
 
     try {
@@ -64,13 +64,36 @@ export default function MolarityTool() {
       );
 
       const scaled = autoScale(canonical, output.dimension);
+
+      /**
+       * The same solution said the other way round. Molar and mass
+       * concentration are separate dimensions precisely because converting
+       * needs a molar mass — and here there is one, so the conversion is
+       * earned rather than assumed. Protocols quote whichever suits them, and
+       * having both removes a step people otherwise do on paper.
+       */
+      const molar =
+        solveFor === 'concentration'
+          ? canonical
+          : parsed.concentration === undefined
+            ? undefined
+            : toCanonical(parsed.concentration, concentration.unitId);
+
+      let detail: string | undefined;
+      if (molar !== undefined && molar > 0) {
+        const byMass = autoScale(molar * molarMassValue, 'mass-concentration');
+        detail = `That solution is ${formatNumber(byMass.value)} ${byMass.unit.label}.`;
+      }
+
       return {
         display: { value: formatNumber(scaled.value), unit: scaled.unit.label },
+        detail,
         error: undefined,
       };
     } catch (caught) {
       return {
         display: undefined,
+        detail: undefined,
         error: caught instanceof MolarityInputError ? caught.message : 'Could not calculate.',
       };
     }
@@ -132,6 +155,7 @@ export default function MolarityTool() {
         label={output.label}
         value={display?.value}
         unit={display?.unit}
+        detail={detail}
         placeholder={error ?? 'Fill in the fields above to calculate.'}
       />
 

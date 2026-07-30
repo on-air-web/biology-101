@@ -19,6 +19,9 @@ import { proteinParametersMeta } from '@/tools/protein-parameters/meta';
 import { structureAlignmentMeta } from '@/tools/structure-alignment/meta';
 import { meltingTemperatureMeta } from '@/tools/melting-temperature/meta';
 import { recipeScalerMeta } from '@/tools/recipe-scaler/meta';
+import { nucleicAcidQuantMeta } from '@/tools/nucleic-acid-quant/meta';
+import { antibioticStockMeta } from '@/tools/antibiotic-stock/meta';
+import { agaroseGelMeta } from '@/tools/agarose-gel/meta';
 import { hemocytometerMeta } from '@/tools/hemocytometer/meta';
 import { cellSeedingMeta } from '@/tools/cell-seeding/meta';
 import { PLANNED_TOOLS } from './planned';
@@ -50,6 +53,9 @@ export const TOOLS: readonly ToolMeta[] = [
   structureAlignmentMeta,
   meltingTemperatureMeta,
   recipeScalerMeta,
+  nucleicAcidQuantMeta,
+  antibioticStockMeta,
+  agaroseGelMeta,
   hemocytometerMeta,
   cellSeedingMeta,
   ...EXTERNAL_TOOLS,

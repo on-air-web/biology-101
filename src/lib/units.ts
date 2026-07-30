@@ -9,7 +9,14 @@
  * bug where a value is scaled twice, or not at all, on one code path.
  */
 
-export type Dimension = 'mass' | 'volume' | 'amount' | 'concentration' | 'length';
+/**
+ * `concentration` is amount per volume (molar); `mass-concentration` is mass
+ * per volume (mg/mL and friends). They are deliberately separate dimensions
+ * because converting between them needs a molar mass, and a units module that
+ * silently bridged them would be inventing one.
+ */
+export type Dimension =
+  'mass' | 'volume' | 'amount' | 'concentration' | 'mass-concentration' | 'length';
 
 export interface Unit {
   id: string;
@@ -18,6 +25,16 @@ export interface Unit {
   dimension: Dimension;
   /** Multiply by this to reach the canonical unit for the dimension. */
   factor: number;
+  /**
+   * Offered in a selector but never chosen to display a computed result.
+   *
+   * For units that are a different notation rather than another step on the
+   * prefix ladder. Per cent weight per volume is the case: it is ten times
+   * mg/mL, so autoScale would reach for it above 10 g/L and report a protein
+   * stock as "5.8 % (w/v)" — arithmetically right and not what anybody wants
+   * to read.
+   */
+  displayOnRequestOnly?: boolean;
 }
 
 export const CANONICAL_UNIT: Record<Dimension, string> = {
@@ -25,6 +42,7 @@ export const CANONICAL_UNIT: Record<Dimension, string> = {
   volume: 'L',
   amount: 'mol',
   concentration: 'M',
+  'mass-concentration': 'g/L',
   length: 'm',
 };
 
@@ -49,6 +67,31 @@ const UNIT_LIST: readonly Unit[] = [
   { id: 'uM', label: 'µM', dimension: 'concentration', factor: 1e-6 },
   { id: 'mM', label: 'mM', dimension: 'concentration', factor: 1e-3 },
   { id: 'M', label: 'M', dimension: 'concentration', factor: 1 },
+
+  /**
+   * Mass per volume, canonically g/L.
+   *
+   * Several of these are numerically identical — ng/µL is µg/mL, and µg/µL is
+   * mg/mL — and both spellings are kept because both are what people write:
+   * a NanoDrop reports ng/µL, a protein stock is labelled mg/mL. Where two
+   * share a factor the "per mL" form is listed last, because autoScale reads
+   * from the largest unit down and returns the last match, so that is the one
+   * a computed result is displayed in.
+   */
+  { id: 'ng_mL', label: 'ng/mL', dimension: 'mass-concentration', factor: 1e-6 },
+  { id: 'ng_uL', label: 'ng/µL', dimension: 'mass-concentration', factor: 1e-3 },
+  { id: 'ug_mL', label: 'µg/mL', dimension: 'mass-concentration', factor: 1e-3 },
+  { id: 'ug_uL', label: 'µg/µL', dimension: 'mass-concentration', factor: 1 },
+  { id: 'mg_mL', label: 'mg/mL', dimension: 'mass-concentration', factor: 1 },
+  // Percent weight per volume: 1% is 1 g in 100 mL, so 10 g/L. Selectable,
+  // but never auto-chosen — see displayOnRequestOnly.
+  {
+    id: 'pct_wv',
+    label: '% (w/v)',
+    dimension: 'mass-concentration',
+    factor: 10,
+    displayOnRequestOnly: true,
+  },
 
   { id: 'nm', label: 'nm', dimension: 'length', factor: 1e-9 },
   { id: 'um', label: 'µm', dimension: 'length', factor: 1e-6 },
@@ -89,7 +132,7 @@ export function autoScale(
   canonicalValue: number,
   dimension: Dimension,
 ): { value: number; unit: Unit } {
-  const candidates = unitsFor(dimension);
+  const candidates = unitsFor(dimension).filter((unit) => !unit.displayOnRequestOnly);
   const fallback = candidates.find((unit) => unit.factor === 1) ?? candidates[0];
   if (!fallback) throw new Error(`No units defined for dimension: ${dimension}`);
 

@@ -35,6 +35,7 @@ const TOOL_COMPONENTS: Record<string, ComponentType> = {
   'protein-parameters': dynamic(() => import('@/tools/protein-parameters/ui')),
   'structure-alignment': dynamic(() => import('@/tools/structure-alignment/ui')),
   'melting-temperature': dynamic(() => import('@/tools/melting-temperature/ui')),
+  'recipe-scaler': dynamic(() => import('@/tools/recipe-scaler/ui')),
 };
 
 export function ToolBody({ toolId }: { toolId: string }) {

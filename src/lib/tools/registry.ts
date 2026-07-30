@@ -18,6 +18,7 @@ import { centrifugeMeta } from '@/tools/centrifuge-rcf-rpm/meta';
 import { proteinParametersMeta } from '@/tools/protein-parameters/meta';
 import { structureAlignmentMeta } from '@/tools/structure-alignment/meta';
 import { meltingTemperatureMeta } from '@/tools/melting-temperature/meta';
+import { recipeScalerMeta } from '@/tools/recipe-scaler/meta';
 import { hemocytometerMeta } from '@/tools/hemocytometer/meta';
 import { cellSeedingMeta } from '@/tools/cell-seeding/meta';
 import { PLANNED_TOOLS } from './planned';
@@ -48,6 +49,7 @@ export const TOOLS: readonly ToolMeta[] = [
   proteinParametersMeta,
   structureAlignmentMeta,
   meltingTemperatureMeta,
+  recipeScalerMeta,
   hemocytometerMeta,
   cellSeedingMeta,
   ...EXTERNAL_TOOLS,

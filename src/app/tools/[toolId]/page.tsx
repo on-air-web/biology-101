@@ -5,7 +5,9 @@ import { Breadcrumbs } from '@/components/shell/breadcrumbs';
 import { ComputeBadge, StatusBadge } from '@/components/ui/badge';
 import { ToolBody } from '@/components/tools/tool-body';
 import { ExternalPanel } from '@/components/tools/external-panel';
-import { ToolJsonLd } from '@/components/seo/json-ld';
+import { FaqJsonLd, ToolJsonLd } from '@/components/seo/json-ld';
+import { ToolExplainerSection } from '@/components/tools/tool-explainer';
+import { getExplainer } from '@/lib/tools/explainers';
 import { FavouriteButton } from '@/components/tools/favourite-button';
 import { RecordVisit } from '@/components/tools/record-visit';
 import { getCategory } from '@/lib/tools/categories';
@@ -49,10 +51,12 @@ export default async function ToolPage({ params }: PageProps) {
   if (!tool || tool.status === 'planned' || tool.kind === 'pipeline') notFound();
 
   const category = getCategory(tool.category);
+  const explainer = getExplainer(tool.id);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-12">
       <ToolJsonLd tool={tool} />
+      {explainer ? <FaqJsonLd faq={explainer.faq} /> : null}
       <RecordVisit toolId={tool.id} />
 
       <Breadcrumbs
@@ -81,10 +85,20 @@ export default async function ToolPage({ params }: PageProps) {
         {tool.kind === 'external' ? <ExternalPanel tool={tool} /> : <ToolBody toolId={tool.id} />}
       </section>
 
-      <section className="mt-10">
-        <h2 className="text-xl">About this tool</h2>
-        <p className="mt-3 text-ink-muted">{tool.description}</p>
-      </section>
+      {/*
+        The description is not repeated in the body. It serves the meta tag and
+        the catalogue card, and the explainer's "when to use this" says the same
+        thing better — printing both made the page open with two paragraphs of
+        near-identical prose. External tools have no explainer, so they keep it.
+      */}
+      {explainer ? (
+        <ToolExplainerSection explainer={explainer} />
+      ) : (
+        <section className="mt-10">
+          <h2 className="text-xl">About this tool</h2>
+          <p className="mt-3 text-ink-muted">{tool.description}</p>
+        </section>
+      )}
 
       {tool.relatedToolIds?.length ? (
         <section className="mt-10">

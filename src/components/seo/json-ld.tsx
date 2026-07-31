@@ -77,3 +77,30 @@ export function CatalogJsonLd({ tools }: { tools: readonly ToolMeta[] }) {
     />
   );
 }
+
+/**
+ * FAQPage markup for a tool's questions.
+ *
+ * The same text that is on the page — this describes the content, it does not
+ * add any. Search engines surface these directly, which is how someone with a
+ * one-line question finds a tool they did not know the name of.
+ */
+export function FaqJsonLd({ faq }: { faq: readonly { question: string; answer: string }[] }) {
+  if (faq.length === 0) return null;
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{
+        __html: JSON.stringify({
+          '@context': 'https://schema.org',
+          '@type': 'FAQPage',
+          mainEntity: faq.map((entry) => ({
+            '@type': 'Question',
+            name: entry.question,
+            acceptedAnswer: { '@type': 'Answer', text: entry.answer },
+          })),
+        }),
+      }}
+    />
+  );
+}

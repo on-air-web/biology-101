@@ -28,6 +28,49 @@ export interface ToolCategory {
 }
 
 /**
+ * A worked example: real numbers going in, a real answer coming out.
+ *
+ * The single most useful thing on a tool page after the tool itself. Someone
+ * who is unsure whether they are holding the right problem can check their
+ * situation against a concrete one in a few seconds, which no amount of prose
+ * about the formula achieves.
+ */
+export interface WorkedExample {
+  /** The situation, in the words someone would use at the bench. */
+  scenario: string;
+  /** What goes in the fields. */
+  inputs: { label: string; value: string }[];
+  /** What comes out. */
+  result: string;
+  /** The one line of interpretation that makes the number mean something. */
+  reading: string;
+}
+
+export interface FaqEntry {
+  question: string;
+  answer: string;
+}
+
+/**
+ * The teaching layer on a tool page.
+ *
+ * A calculator answers the question you knew how to ask. This is for the far
+ * more common case: knowing roughly what you need and not being certain this
+ * is the right tool, or what the answer implies. Required on every built-in
+ * tool — `registry.test.ts` fails the build without it, for the same reason
+ * `useWhen` is required on a curated pick. A tool that cannot explain when it
+ * is the wrong choice is not finished.
+ */
+export interface ToolExplainer {
+  /** When this is the right tool, and when it is not. Two or three sentences. */
+  whenToUse: string;
+  workedExample: WorkedExample;
+  /** What people actually get wrong. Usually the most useful section. */
+  commonMistakes: string[];
+  faq: FaqEntry[];
+}
+
+/**
  * A literature reference for a formula, constant or parameter set.
  * Displayed in the UI next to the result — not buried in a footer.
  */
@@ -158,7 +201,11 @@ export interface ToolMeta {
   category: ToolCategoryId;
   /** One line. Used on cards, in search results and as the meta description. */
   summary: string;
-  /** A paragraph for the tool page and for search engines. */
+  /**
+   * A paragraph for the meta description and the catalogue card. Built-in
+   * tools do not print it in the page body — the explainer's `whenToUse`
+   * covers the same ground and reads better in place.
+   */
   description: string;
   /**
    * Search synonyms and the things people actually type: abbreviations, unit

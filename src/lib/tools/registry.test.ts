@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { TOOLS, getRoutableTools, getTool } from './registry';
+import { TOOLS, getBuiltinTools, getRoutableTools, getTool } from './registry';
+import { TOOL_EXPLAINERS } from './explainers';
 import { TOOL_CATEGORIES } from './types';
 import { CATEGORIES } from './categories';
 
@@ -107,5 +108,57 @@ describe('tool registry', () => {
       expect(tool.keywords.length, `${tool.id} has no keywords`).toBeGreaterThan(0);
       expect(tool.summary.length, `${tool.id} summary is too short`).toBeGreaterThan(10);
     }
+  });
+
+  /**
+   * The explainer layer is required, for the same reason `useWhen` is required
+   * on a curated pick: a tool that cannot say when it is the wrong choice, or
+   * show one worked example, is not finished. Making it a build failure is what
+   * stops it going the way the task guides did, where the gap quietly widened
+   * over five milestones.
+   */
+  describe('the explainer layer', () => {
+    it('covers every built-in tool', () => {
+      for (const tool of getBuiltinTools()) {
+        expect(TOOL_EXPLAINERS[tool.id], `${tool.id} has no explainer`).toBeDefined();
+      }
+    });
+
+    it('has no explainer for a tool that does not exist', () => {
+      for (const id of Object.keys(TOOL_EXPLAINERS)) {
+        expect(getTool(id), `explainer "${id}" matches no tool`).toBeDefined();
+      }
+    });
+
+    it('says something substantial in each section', () => {
+      for (const [id, explainer] of Object.entries(TOOL_EXPLAINERS)) {
+        expect(explainer.whenToUse.length, `${id}: whenToUse`).toBeGreaterThan(120);
+        expect(explainer.commonMistakes.length, `${id}: commonMistakes`).toBeGreaterThanOrEqual(2);
+        expect(explainer.faq.length, `${id}: faq`).toBeGreaterThanOrEqual(3);
+        for (const mistake of explainer.commonMistakes) {
+          expect(mistake.length, `${id}: a mistake is too short to be useful`).toBeGreaterThan(60);
+        }
+        for (const entry of explainer.faq) {
+          expect(entry.question.trim().endsWith('?'), `${id}: "${entry.question}"`).toBe(true);
+          expect(entry.answer.length, `${id}: answer to "${entry.question}"`).toBeGreaterThan(60);
+        }
+      }
+    });
+
+    it('gives every worked example real inputs and a reading', () => {
+      for (const [id, explainer] of Object.entries(TOOL_EXPLAINERS)) {
+        const { scenario, inputs, result, reading } = explainer.workedExample;
+        expect(scenario.length, `${id}: scenario`).toBeGreaterThan(25);
+        expect(inputs.length, `${id}: inputs`).toBeGreaterThan(0);
+        for (const input of inputs) {
+          expect(input.label.length, `${id}: an input has no label`).toBeGreaterThan(0);
+          expect(input.value.length, `${id}: ${input.label} has no value`).toBeGreaterThan(0);
+        }
+        expect(result.length, `${id}: result`).toBeGreaterThan(0);
+        // The reading is what makes the number mean something; a bare result
+        // repeated back is not one.
+        expect(reading.length, `${id}: reading`).toBeGreaterThan(40);
+      }
+    });
   });
 });

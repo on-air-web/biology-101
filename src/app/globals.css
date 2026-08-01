@@ -15,6 +15,13 @@
   --color-gfp-400: #4ade80;
   --color-gfp-600: #20402c;
 
+  /* The accent under another name, for state rather than for colour: focus
+   * rings, and the underline a citation takes on hover. It had been used by
+   * `ring-brand` and `decoration-brand` since milestone 11 without ever being
+   * defined, so Tailwind emitted no rule for either and the focus ring on
+   * every segmented control was invisible. */
+  --color-brand: var(--color-gfp-400);
+
   --color-link-400: #6ba5ff;
   --color-link-700: #2c4570;
 

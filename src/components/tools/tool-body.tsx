@@ -39,6 +39,10 @@ const TOOL_COMPONENTS: Record<string, ComponentType> = {
   'nucleic-acid-quant': dynamic(() => import('@/tools/nucleic-acid-quant/ui')),
   'antibiotic-stock': dynamic(() => import('@/tools/antibiotic-stock/ui')),
   'agarose-gel': dynamic(() => import('@/tools/agarose-gel/ui')),
+  'spectra-viewer': dynamic(() => import('@/tools/spectra-viewer/ui')),
+  'filter-compatibility': dynamic(() => import('@/tools/filter-compatibility/ui')),
+  'fret-pair': dynamic(() => import('@/tools/fret-pair/ui')),
+  'fluorophore-brightness': dynamic(() => import('@/tools/fluorophore-brightness/ui')),
 };
 
 export function ToolBody({ toolId }: { toolId: string }) {

@@ -954,6 +954,188 @@ export const TOOL_EXPLAINERS: Record<string, ToolExplainer> = {
       },
     ],
   },
+
+  // ------------------------------------------------------------ imaging ----
+  'spectra-viewer': {
+    whenToUse:
+      'Use this when you are choosing fluorophores and need to see whether they will separate, or when you want to know how well a laser line you actually have excites something. It answers questions about the molecules. If the question is about your filters — what a given cube will collect, or how much of one channel is really another — the filter set checker is the tool, and if you are choosing between fluorophores on brightness rather than colour, use the brightness comparison.',
+    workedExample: {
+      scenario: 'You are planning a two-colour experiment on a confocal with 488 and 561 nm lines.',
+      inputs: [
+        { label: 'Fluorophores', value: 'EGFP, mCherry' },
+        { label: 'Laser lines', value: '488, 561' },
+      ],
+      result: 'EGFP 100% at 488 and 0% at 561; mCherry 8% at 488 and 64% at 561.',
+      reading:
+        'The pair is clean in one direction and not the other: 561 cannot excite EGFP at all, but 488 does excite mCherry to 8% of its peak, so some red signal will appear in a 488-only image and it will not be a filter fault.',
+    },
+    commonMistakes: [
+      'Reading peak height as brightness. Every curve is normalised to its own maximum, so a fluorophore with a tenth of the extinction coefficient draws exactly as tall a peak. The brightness column is the number that compares them, and it can differ by a factor of ten between two curves that look identical.',
+      'Judging separation from the two emission maxima alone. What causes bleed-through is the tail, not the peak — EGFP still emits about 1% of its photons beyond 625 nm, which is enough to see in a red channel from a bright sample.',
+      'Assuming the excitation spectrum is negligible away from its peak. EGFP is still at about 17% of maximum on a 405 nm line, because its chromophore has a protonated form absorbing near 400 nm, so a violet channel is never as clean as the maxima suggest.',
+      'Treating a published spectrum as what your sample will do. These are measured on purified protein or free dye in buffer; pH, chloride and the fusion partner all shift things, and for a pH-sensitive protein such as EYFP inside an acidic compartment the shift is large enough to change the experiment.',
+    ],
+    faq: [
+      {
+        question: 'Where do the spectra come from?',
+        answer:
+          'FPbase, whose data terms place it under no copyright restriction for commercial or non-commercial use, asking only that the original authors of each measurement are credited. The set here is curated to 45 fluorophores people actually image with rather than mirrored wholesale.',
+      },
+      {
+        question: 'Why is the excitation curve dashed and the emission filled?',
+        answer:
+          'So the two are distinguishable without colour, since fluorophores are drawn in colours derived from their own emission wavelength and several of them are close together. The fill also makes overlapping emission — the thing that causes trouble — visible where two outlines would cross confusingly.',
+      },
+      {
+        question: 'What is a Stokes shift and does a big one help?',
+        answer:
+          'It is the gap between the excitation and emission maxima. A large one makes a fluorophore easier to separate from its own excitation light and lets it share a laser line with something else, which is why large-shift proteins such as mPlum are chosen despite being dim.',
+      },
+      {
+        question: 'Why do some entries have no brightness figure?',
+        answer:
+          'Because no extinction coefficient or quantum yield is published for them in the source database. Several older dyes are in that position. The tool shows a dash rather than a guess, and those entries also cannot be used as a FRET acceptor.',
+      },
+    ],
+  },
+
+  'filter-compatibility': {
+    whenToUse:
+      'Use this before staining anything, when you have a panel in mind and a microscope with particular filters, to find out what each channel will really collect. It is also the tool for diagnosing a channel that looks contaminated after the fact. It models filters from their designation rather than measured curves, so any part you can name works; it does not model your detector, which starts to matter past about 700 nm.',
+    workedExample: {
+      scenario:
+        'EGFP and mCherry on a confocal: a green channel at 488 with a 525/50 emission filter, and a red channel at 561 with 600/50.',
+      inputs: [
+        { label: 'Fluorophores', value: 'EGFP, mCherry' },
+        { label: 'Green channel', value: '488 nm, 495 LP, 525/50' },
+        { label: 'Red channel', value: '561 nm, 570 LP, 600/50' },
+      ],
+      result:
+        'EGFP: 100% green, 0.0% red. mCherry: 0.0% green, 100% red, excited to 64% and collected at 42%.',
+      reading:
+        'The panel works, and the interesting number is the last one: the red channel collects only 42% of what mCherry emits, so a wider emission filter is the cheapest signal available here — cross-talk is not what is limiting this experiment.',
+    },
+    commonMistakes: [
+      'Choosing an emission filter from the fluorophore alone and never checking it against the other labels. A 600/50 is a perfectly good mCherry filter and a poor one if there is a TagRFP in the next channel, and nothing about the single-colour view reveals that.',
+      'Blaming the filters for a fluorophore the illumination barely reaches. If a label is only 5% excited in its own best channel, no emission filter recovers light that was never emitted — that needs a different laser line, and the tool says so rather than suggesting a filter change.',
+      'Forgetting that sequential excitation removes most cross-talk for free. DAPI emits well into a green passband, but at 488 nm it absorbs nothing at all, so a sequentially acquired green channel sees exactly none of it. The same two filters with a shared violet line leak badly.',
+      'Reading the channel composition figures as a prediction. They assume equal molar amounts of every fluorophore, and a strong promoter against a knock-in tag differs by orders of magnitude — enough to swamp the entire calculation. The bleed-through table carries no such assumption.',
+    ],
+    faq: [
+      {
+        question: 'How do I write my filters?',
+        answer:
+          'As they are printed: a bandpass as centre/width such as 525/50, and an edge filter with LP or SP such as 495 LP. Vendor part numbers including ET525/50m and FF01-525/50-25 are read correctly. A bare number is refused, because 525 alone could be either a bandpass centre or a longpass edge.',
+      },
+      {
+        question: 'Why is bleed-through independent of expression level?',
+        answer:
+          'Because each row compares one fluorophore against itself in two channels. How much of it is present, and how bright it is, multiply both numbers equally and cancel out. That is what makes the figure worth trusting when nothing else about the sample is known.',
+      },
+      {
+        question: 'What does "fit to" do to a channel?',
+        answer:
+          'It derives a filter set from that fluorophore’s own spectra: the dichroic goes where its excitation and emission curves cross, the excitation band runs from there out to half maximum, and the emission band out to a fifth of maximum. It knows nothing of any vendor catalogue, which is why agreeing closely with the standard cubes is worth something.',
+      },
+      {
+        question: 'How accurate is modelling a filter instead of measuring it?',
+        answer:
+          'Good enough for the question being asked. The model assumes perfect out-of-band blocking, and a real hard-coated filter blocks to about one part in 100,000 — far below the in-band spectral overlap that actually causes cross-talk, which is modelled properly. It will understate leakage from a damaged or badly angled filter.',
+      },
+    ],
+  },
+
+  'fret-pair': {
+    whenToUse:
+      'Use this when choosing a donor and acceptor for a FRET biosensor or an interaction assay, or to check whether the distance you are trying to measure falls inside the range a pair can report at all. It computes the Förster radius from the actual spectra rather than quoting a table. It does not tell you whether two proteins interact — it tells you whether you would be able to see it if they did.',
+    workedExample: {
+      scenario:
+        'A cyan-to-yellow biosensor with the two fluorophores expected to sit about 5 nm apart.',
+      inputs: [
+        { label: 'Donor', value: 'mTurquoise2' },
+        { label: 'Acceptor', value: 'mVenus' },
+        { label: 'Orientation κ²', value: '2/3 (free rotation)' },
+        { label: 'Refractive index', value: '1.4 (protein interior)' },
+        { label: 'Separation', value: '5 nm' },
+      ],
+      result: 'R₀ = 5.66 nm, giving 67.8% transfer at 5 nm.',
+      reading:
+        'A good working point: efficiency is measurable between about 3.9 and 8.2 nm, and 5 nm sits inside that with room to move in both directions, which is what a sensor needs in order to have a signal to change.',
+    },
+    commonMistakes: [
+      'Choosing a pair on Förster radius alone. Direct excitation of the acceptor by the donor line, and donor emission leaking into the acceptor channel, sink more intensity-based FRET experiments than a short R₀ does — and both need their own single-label controls rather than a better pair.',
+      'Believing κ² = 2/3 without asking whether it applies. It assumes both dipoles rotate freely and fast compared with the donor lifetime, which is reasonable for a dye on a long linker and questionable for a fluorescent protein whose chromophore is rigidly held inside a β-barrel.',
+      'Reading a change in acceptor intensity as a change in distance. Acceptor signal also rises with expression, with maturation, and with direct excitation; ratiometric measurements and donor lifetime exist precisely because raw acceptor intensity does not mean what it appears to.',
+      'Picking a pair whose emissions are close together. EGFP into EYFP has a perfectly respectable Förster radius and is nearly useless ratiometrically, because no filter cleanly separates the two channels. Such pairs belong in a lifetime measurement on the donor.',
+    ],
+    faq: [
+      {
+        question: 'Why is my R₀ slightly different from the published value?',
+        answer:
+          'Published radii assume a particular quantum yield, refractive index and κ², and papers differ on all three — a value quoted at n = 1.33 is about 2% larger than the same pair at 1.4. The spectra themselves also vary between measurements. Agreement to within a few per cent is as close as this quantity gets.',
+      },
+      {
+        question: 'How much does the orientation factor really matter?',
+        answer:
+          'Less than its reputation suggests, because R₀ depends on it only as the sixth root. The entire physical range from 0 to 4 moves the radius by a factor of about 2.9, and the plausible range for a tethered protein pair moves it by well under a fifth.',
+      },
+      {
+        question: 'Is the static κ² of 0.476 the average of κ²?',
+        answer:
+          'No, and this is worth being careful about. The mean of κ² is 2/3 whether the dipoles are moving or frozen; 0.476 is the square of the mean of |κ|, an average appropriate to the static limit. The two differ by 40%, and they are frequently confused.',
+      },
+      {
+        question: 'Can I use this for single-molecule FRET?',
+        answer:
+          'Yes — Cy3 to Cy5 is in the catalogue and comes out near the published 5.4 nm. For smFRET the dyes are on flexible linkers, so κ² = 2/3 is far better justified there than it is for a fluorescent protein pair.',
+      },
+    ],
+  },
+
+  'fluorophore-brightness': {
+    whenToUse:
+      'Use this when deciding which fluorophore to put in a construct or on an antibody, and you want to know what your own microscope will detect rather than what a table says. Molecular brightness is the fluorophore’s own property; practical brightness folds in how well your line excites it and how much of its emission your filter passes. Use the spectra viewer instead if the question is about colour separation rather than signal.',
+    workedExample: {
+      scenario: 'A widefield green channel: a 488 nm line and a 525/50 emission filter.',
+      inputs: [
+        { label: 'Laser', value: '488 nm' },
+        { label: 'Emission filter', value: '525/50' },
+        { label: 'Rank by', value: 'In this setup' },
+      ],
+      result:
+        'mStayGold 100%, mNeonGreen 66%, Alexa Fluor 488 54%, mEmerald 41% — against molecular brightnesses of 136, 93, 67 and 39.',
+      reading:
+        'mEmerald is the only one of the four that this line excites fully, at 100%, and it still finishes last: being perfectly matched to the laser does not compensate for having a third of the extinction coefficient.',
+    },
+    commonMistakes: [
+      'Choosing on ε × Φ alone. Move the same comparison to a 405 nm line and a 450/50 filter and mCerulean3 is the brighter molecule while mTagBFP2 delivers 3.9 times the signal, purely because the line excites it to 96% rather than 58%.',
+      'Ranking fluorophores by the photobleaching half-lives shown here. Those figures are not comparable with one another: each comes from a different paper at a different illumination intensity, in a different medium, and the same protein has been published with values an order of magnitude apart. Read a small number as a prompt to test it yourself.',
+      'Forgetting everything this does not model. Maturation time, folding efficiency, expression level, and whether the fusion tolerates the tag at all routinely matter more in a live cell than any column here — a bright protein that matures slowly is dark for the first hours of a timelapse.',
+      'Assuming a dye conjugate behaves like the free dye. These figures are for the free fluorophore; on a densely labelled antibody, self-quenching can cost most of the brightness, and it is worst for exactly the narrow-Stokes-shift dyes that look best on paper.',
+    ],
+    faq: [
+      {
+        question: 'What are the units of brightness?',
+        answer:
+          'ε × Φ divided by 1000, which is the convention every fluorescent protein paper uses — EGFP is 33.5 on that scale. It has no physical meaning on its own and exists only to be compared with other entries in the same column.',
+      },
+      {
+        question: 'Why is a bright far-red dye shown at zero in my green setup?',
+        answer:
+          'Because a 488 nm line does not excite it. The practical column is the molecular brightness multiplied by how much of the molecule the illumination reaches, so a fluorophore the laser cannot touch scores near zero however bright it is in principle.',
+      },
+      {
+        question: 'Does this account for the camera?',
+        answer:
+          'No. Detector quantum efficiency is not modelled, which is fine across the visible range and increasingly wrong past about 700 nm, where a silicon sensor falls off steeply. A near-infrared dye will look better here than it will on your camera.',
+      },
+      {
+        question: 'Should I always pick the brightest one?',
+        answer:
+          'No. Photostability decides long timelapses, monomeric behaviour decides whether a fusion works at all, and maturation decides what you see in the first hours. Brightness matters most when signal is genuinely the limit — which is worth confirming before optimising for it.',
+      },
+    ],
+  },
 };
 
 export function getExplainer(toolId: string): ToolExplainer | undefined {

@@ -30,7 +30,7 @@ export const CATEGORIES: readonly ToolCategory[] = [
   {
     id: 'imaging',
     name: 'Imaging & microscopy',
-    summary: 'Image analysis, segmentation, deconvolution and slide handling.',
+    summary: 'Fluorophore spectra, filter sets, FRET pairs and image analysis.',
   },
   {
     id: 'statistics',

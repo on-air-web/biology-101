@@ -24,6 +24,10 @@ import { antibioticStockMeta } from '@/tools/antibiotic-stock/meta';
 import { agaroseGelMeta } from '@/tools/agarose-gel/meta';
 import { hemocytometerMeta } from '@/tools/hemocytometer/meta';
 import { cellSeedingMeta } from '@/tools/cell-seeding/meta';
+import { spectraViewerMeta } from '@/tools/spectra-viewer/meta';
+import { filterCompatibilityMeta } from '@/tools/filter-compatibility/meta';
+import { fretPairMeta } from '@/tools/fret-pair/meta';
+import { fluorophoreBrightnessMeta } from '@/tools/fluorophore-brightness/meta';
 import { PLANNED_TOOLS } from './planned';
 import { EXTERNAL_TOOLS } from './external';
 import { STATISTICS_TOOLS } from './statistics-tools';
@@ -58,6 +62,10 @@ export const TOOLS: readonly ToolMeta[] = [
   agaroseGelMeta,
   hemocytometerMeta,
   cellSeedingMeta,
+  spectraViewerMeta,
+  filterCompatibilityMeta,
+  fretPairMeta,
+  fluorophoreBrightnessMeta,
   ...EXTERNAL_TOOLS,
   ...STATISTICS_TOOLS,
   ...PLANNED_TOOLS,

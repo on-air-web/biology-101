@@ -16,6 +16,7 @@
     "format:check": "prettier --check .",
     "images": "node scripts/fetch-images.mjs",
     "lint": "eslint .",
+    "spectra": "node scripts/fetch-spectra.mjs",
     "start": "next start",
     "test": "vitest run",
     "test:watch": "vitest",

@@ -49,6 +49,8 @@ export default tseslint.config(
         process: 'readonly',
         fetch: 'readonly',
         Buffer: 'readonly',
+        // fetch-spectra.mjs backs off between requests to a free academic API.
+        setTimeout: 'readonly',
       },
     },
   },

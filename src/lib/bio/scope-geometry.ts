@@ -278,6 +278,54 @@ export function drawSolid(
   return { d, depth: outer.depth, facing };
 }
 
+/**
+ * A rectangular block: the base, the limb, the stage.
+ *
+ * The optics are all surfaces of revolution, but the stand a student actually
+ * puts their hands on is not, and a light path floating in space is the thing
+ * that makes an optical diagram hard to connect to the instrument on the bench.
+ * A box costs almost nothing to add here because its silhouette is the convex
+ * hull of eight projected corners, which is the machinery the revolutions
+ * already use.
+ */
+export interface BoxSolid {
+  at: Vec3;
+  /** Half-extents along x, y and z, before any rotation of the view. */
+  half: Vec3;
+}
+
+export function boxCorners(box: BoxSolid): Vec3[] {
+  const corners: Vec3[] = [];
+  for (const sx of [-1, 1]) {
+    for (const sy of [-1, 1]) {
+      for (const sz of [-1, 1]) {
+        corners.push([
+          box.at[0] + sx * box.half[0],
+          box.at[1] + sy * box.half[1],
+          box.at[2] + sz * box.half[2],
+        ]);
+      }
+    }
+  }
+  return corners;
+}
+
+export function drawBox(
+  box: BoxSolid,
+  view: View,
+  transform: WorldTransform = IDENTITY,
+): DrawnSolid {
+  const projected = boxCorners(box).map((corner) => project(transform(corner), view));
+  const centre = project(transform(box.at), view);
+  return {
+    d: toPath(convexHull(projected)),
+    depth: centre.depth,
+    // A block has no single face to catch the light, so it shades flat. Using
+    // the revolutions' `facing` here would make the stand flicker as it turned.
+    facing: 1,
+  };
+}
+
 /** Painter's algorithm: furthest first, so nearer parts draw over them. */
 export function sortByDepth<T extends { depth: number }>(items: readonly T[]): T[] {
   return [...items].sort((a, b) => a.depth - b.depth);

@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { CircleAlert, Info } from 'lucide-react';
+import { CircleAlert, Eye, EyeOff, Info } from 'lucide-react';
 import { Ladder } from '@/components/brand/ladder';
 import { MicroscopeScene } from '@/components/tools/microscope-scene';
 import { NumberInput } from '@/components/ui/quantity-input';
@@ -17,6 +17,7 @@ import {
   defaultBands,
   explore,
   partsInLightOrder,
+  standParts,
 } from './compute';
 import { microscopeExplorerMeta } from './meta';
 
@@ -32,6 +33,7 @@ export default function MicroscopeExplorerTool() {
   const [criterion, setCriterion] = useState<CriterionId>('abbe');
   const [selectedPartId, setSelectedPartId] = useState<string | undefined>();
   const [hiddenBands, setHiddenBands] = useState<RayBand[]>([]);
+  const [showBody, setShowBody] = useState(true);
   const [na, setNa] = useState('');
   const [wavelength, setWavelength] = useState('');
   const [immersionId, setImmersionId] = useState<string>('');
@@ -78,6 +80,7 @@ export default function MicroscopeExplorerTool() {
 
   const selectedPart = modality.parts.find((part) => part.id === selectedPartId);
   const ordered = useMemo(() => partsInLightOrder(modality), [modality]);
+  const stand = useMemo(() => standParts(modality), [modality]);
   const sets = useMemo(() => conjugateSets(modality), [modality]);
   const setOf = (partId: string) => sets.find((set) => set.partIds.includes(partId));
 
@@ -122,7 +125,29 @@ export default function MicroscopeExplorerTool() {
             visibleBands={visibleBands}
             selectedPartId={selectedPartId}
             onSelectPart={setSelectedPartId}
+            showBody={showBody}
           />
+
+          <label
+            className={cn(
+              'mt-3 flex h-8 w-fit cursor-pointer items-center gap-2 rounded-lab border px-2.5 text-[12.5px]',
+              'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand',
+              showBody ? 'border-line-strong text-ink' : 'border-line text-ink-faint',
+            )}
+          >
+            <input
+              type="checkbox"
+              checked={showBody}
+              onChange={() => setShowBody((current) => !current)}
+              className="sr-only"
+            />
+            {showBody ? (
+              <Eye className="size-3.5 text-ink-muted" aria-hidden />
+            ) : (
+              <EyeOff className="size-3.5" aria-hidden />
+            )}
+            Stand and body
+          </label>
 
           <fieldset className="mt-3">
             <legend className="lbl">Light paths</legend>
@@ -212,6 +237,34 @@ export default function MicroscopeExplorerTool() {
               the emission coming back up.
             </p>
           ) : null}
+
+          <p className="lbl mt-4">The stand</p>
+          <ul className="mt-1.5 space-y-0.5">
+            {stand.map((part) => {
+              const on = part.id === selectedPartId;
+              return (
+                <li key={part.id}>
+                  <button
+                    type="button"
+                    onMouseEnter={() => setSelectedPartId(part.id)}
+                    onFocus={() => setSelectedPartId(part.id)}
+                    onClick={() => setSelectedPartId(on ? undefined : part.id)}
+                    className={cn(
+                      'flex w-full items-baseline gap-2 rounded px-2 py-1 text-left text-[12.5px]',
+                      'focus-visible:ring-2 focus-visible:ring-brand focus-visible:outline-none',
+                      on ? 'bg-gfp-400/10 text-ink' : 'text-ink-muted hover:text-ink',
+                    )}
+                  >
+                    <span className="flex-1">{part.name}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="mt-2 text-[11.5px] leading-[1.6] text-ink-faint">
+            Carries no light. It is here so the parts above can be found on a real instrument — hide
+            it with the toggle above the drawing to see the bare optical train.
+          </p>
         </div>
 
         <div>
@@ -353,8 +406,12 @@ export default function MicroscopeExplorerTool() {
         <p className="text-[12px] leading-[1.6] text-ink-faint">
           The drawing is a schematic, not an optical design: parts sit in the right order and every
           ray passes through the correct sequence of conjugate planes, but nothing is traced through
-          a lens prescription and no focal length is claimed. The resolution figures beside it are
-          real closed forms and do not depend on the drawing.
+          a lens prescription and no focal length is claimed. The stand is a generic upright one,
+          drawn so the optics can be found on a real instrument rather than to match any
+          manufacturer — and much fluorescence work is done on inverted stands, where the objective
+          sits under the specimen and everything above the sample here is below it. The optical axis
+          is compressed for legibility, more so with the stand hidden. The resolution figures beside
+          the drawing are real closed forms and do not depend on it.
         </p>
       </div>
     </div>

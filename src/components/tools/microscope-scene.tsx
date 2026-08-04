@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   anchorOf,
+  drawBox,
   drawPolyline,
   drawSolid,
   polylineDepth,
@@ -10,7 +11,14 @@ import {
   type Vec3,
   type View,
 } from '@/lib/bio/scope-geometry';
-import { extentOf, solidFor, type Modality, type Part, type RayBand } from '@/lib/bio/microscopes';
+import {
+  boxFor,
+  isBox,
+  solidFor,
+  type Modality,
+  type Part,
+  type RayBand,
+} from '@/lib/bio/microscopes';
 import { cn } from '@/lib/utils';
 
 /**
@@ -32,16 +40,22 @@ const PITCH_LIMIT = 0.62;
 const SCALE_LIMITS = { min: 0.4, max: 4 };
 
 /**
- * How far the optical axis is squashed for display.
+ * How far the optical axis is squashed for display, with and without the stand.
  *
- * A real stand is about eighteen times taller than it is wide, which draws as a
- * thread with some specks on it. Every printed optical diagram compresses that
- * ratio, and so does this one — applied in world space before the rotation, so
- * parts and rays are squashed identically and the scene stays consistent at any
- * angle. The caption under the tool says the drawing is schematic; this is the
- * largest part of what that word is covering.
+ * Two values because the two views have opposite problems. The bare optical
+ * train is about eighteen times taller than it is wide and draws as a thread
+ * with specks on it, so it needs squashing hard — which is what every printed
+ * ray diagram does. The stand is wide enough to carry itself, and squashing it
+ * that far turns the base and the stage into pancakes and the instrument stops
+ * being recognisable, which defeats the point of drawing it.
+ *
+ * Applied in world space before the rotation, so parts, stand and rays are
+ * squashed identically and the scene stays consistent at any angle.
  */
-const AXIAL_COMPRESSION = 0.45;
+const AXIAL_COMPRESSION = { withBody: 0.85, bare: 0.42 } as const;
+
+const compressionFor = (showBody: boolean) =>
+  showBody ? AXIAL_COMPRESSION.withBody : AXIAL_COMPRESSION.bare;
 
 /** Fraction of the frame the instrument should occupy at the default zoom. */
 const FIT_MARGIN = 0.86;
@@ -55,23 +69,40 @@ const FIT_MARGIN = 0.86;
  * clipped the lamp off the arm or left the brightfield column adrift in the
  * middle of an empty frame.
  */
-function fitScale(modality: Modality): number {
-  const { minY, maxY } = extentOf(modality);
+/**
+ * The bounding box of whatever is currently drawn.
+ *
+ * Takes `showBody` because hiding the stand changes the answer: an epi column
+ * without its base spans a quite different range, and framing on the hidden
+ * foot would leave the optics stranded in the top half of the frame.
+ */
+function framing(modality: Modality, showBody: boolean) {
+  const visible = modality.parts.filter((part) => showBody || !part.structural);
+
+  let minY = Infinity;
+  let maxY = -Infinity;
+  for (const part of visible) {
+    const spanY = part.box ? part.box[1] : part.thickness / 2;
+    minY = Math.min(minY, part.at[1] - spanY);
+    maxY = Math.max(maxY, part.at[1] + spanY);
+  }
   const centre = (minY + maxY) / 2;
 
   let halfWidth = 0;
-  let halfHeight = 0;
-  for (const part of modality.parts) {
-    halfWidth = Math.max(halfWidth, Math.abs(part.at[0]) + part.radius);
-    halfHeight = Math.max(
-      halfHeight,
-      Math.abs((part.at[1] - centre) * AXIAL_COMPRESSION) + part.radius * AXIAL_COMPRESSION,
-    );
+  for (const part of visible) {
+    const spanX = part.box ? part.box[0] : part.radius;
+    halfWidth = Math.max(halfWidth, Math.abs(part.at[0]) + spanX);
   }
+  const halfHeight = ((maxY - minY) / 2) * compressionFor(showBody);
 
+  return { centre, halfWidth: Math.max(halfWidth, 1), halfHeight: Math.max(halfHeight, 1) };
+}
+
+function fitScale(modality: Modality, showBody: boolean): number {
+  const { halfWidth, halfHeight } = framing(modality, showBody);
   return Math.min(
-    (VIEWBOX.width / 2 / Math.max(halfWidth, 1)) * FIT_MARGIN,
-    (VIEWBOX.height / 2 / Math.max(halfHeight, 1)) * FIT_MARGIN,
+    (VIEWBOX.width / 2 / halfWidth) * FIT_MARGIN,
+    (VIEWBOX.height / 2 / halfHeight) * FIT_MARGIN,
   );
 }
 
@@ -101,6 +132,7 @@ const PART_FILL: Record<Part['kind'], string> = {
   prism: 'var(--color-link-400)',
   polariser: 'var(--color-ink-faint)',
   pinhole: 'var(--color-ink-faint)',
+  body: 'var(--color-ink-muted)',
 };
 
 export interface MicroscopeSceneProps {
@@ -109,6 +141,8 @@ export interface MicroscopeSceneProps {
   visibleBands: readonly RayBand[];
   selectedPartId?: string;
   onSelectPart: (id: string | undefined) => void;
+  /** Draw the stand. Turning it off leaves the bare optical train. */
+  showBody: boolean;
 }
 
 export function MicroscopeScene({
@@ -116,10 +150,11 @@ export function MicroscopeScene({
   visibleBands,
   selectedPartId,
   onSelectPart,
+  showBody,
 }: MicroscopeSceneProps) {
   const defaultView = useMemo<View>(
-    () => ({ yaw: 0.5, pitch: 0.34, scale: fitScale(modality) }),
-    [modality],
+    () => ({ yaw: 0.5, pitch: 0.34, scale: fitScale(modality, showBody) }),
+    [modality, showBody],
   );
   const [view, setView] = useState<View>(defaultView);
   const [dragging, setDragging] = useState(false);
@@ -177,20 +212,22 @@ export function MicroscopeScene({
   // Squash the column and centre it on the origin, so switching instrument
   // does not make the stand jump about the frame.
   const squash = useMemo(() => {
-    const { minY, maxY } = extentOf(modality);
-    const centre = (minY + maxY) / 2;
-    return (p: Vec3): Vec3 => [p[0], (p[1] - centre) * AXIAL_COMPRESSION, p[2]];
-  }, [modality]);
+    const { centre } = framing(modality, showBody);
+    const compression = compressionFor(showBody);
+    return (p: Vec3): Vec3 => [p[0], (p[1] - centre) * compression, p[2]];
+  }, [modality, showBody]);
 
   const rendered = useMemo(() => {
-    const parts = modality.parts.map((part) => {
-      const solid = solidFor(part);
-      return {
-        part,
-        drawn: drawSolid(solid, view, squash),
-        anchor: anchorOf(solid, view, squash),
-      };
-    });
+    const parts = modality.parts
+      .filter((part) => showBody || !part.structural)
+      .map((part) => {
+        const solid = solidFor(part);
+        return {
+          part,
+          drawn: isBox(part) ? drawBox(boxFor(part), view, squash) : drawSolid(solid, view, squash),
+          anchor: anchorOf(solid, view, squash),
+        };
+      });
 
     const rays = modality.rays
       .filter((ray) => visibleBands.includes(ray.band))
@@ -201,7 +238,7 @@ export function MicroscopeScene({
       }));
 
     return { parts, rays };
-  }, [modality, view, visibleBands, squash]);
+  }, [modality, view, visibleBands, squash, showBody]);
 
   // Rays and parts are depth-sorted together, so a ray genuinely passes behind
   // the far side of a lens and in front of the near side.
@@ -340,7 +377,24 @@ function PartShape({
   // Edge-on components get more fill and less outline, so a dichroic turned
   // flat to the viewer reads as a disc and the same part side-on reads as a
   // line. Shading carries the 3D that flat colour cannot.
-  const opacity = (selected ? 0.62 : dimmed ? 0.14 : 0.38) * (0.62 + 0.38 * facing);
+  //
+  // The stand is drawn much fainter than the optics on purpose: it is there to
+  // say where you are on the instrument, and it would otherwise bury the light
+  // path it exists to give context to. This is the cutaway idiom — the casting
+  // is present but you can see through it.
+  const structural = part.structural === true;
+  const base = structural
+    ? selected
+      ? 0.3
+      : dimmed
+        ? 0.05
+        : 0.12
+    : selected
+      ? 0.62
+      : dimmed
+        ? 0.14
+        : 0.38;
+  const opacity = base * (structural ? 1 : 0.62 + 0.38 * facing);
 
   return (
     <path
@@ -349,8 +403,8 @@ function PartShape({
       fill={fill}
       fillOpacity={opacity}
       stroke={fill}
-      strokeOpacity={selected ? 1 : dimmed ? 0.3 : 0.75}
-      strokeWidth={selected ? 2 : 1.1}
+      strokeOpacity={selected ? 1 : dimmed ? 0.22 : structural ? 0.42 : 0.75}
+      strokeWidth={selected ? 2 : structural ? 0.9 : 1.1}
       tabIndex={0}
       role="button"
       aria-pressed={selected}

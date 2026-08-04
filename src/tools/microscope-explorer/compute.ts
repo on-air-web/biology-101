@@ -89,14 +89,27 @@ export function explore(input: ExplorerInput): ExplorerResult {
  * where the light actually starts.
  */
 export function partsInLightOrder(modality: Modality): Part[] {
-  const offAxis = modality.parts.filter((part) => Math.abs(part.at[0]) > 1);
-  const onAxis = modality.parts.filter((part) => Math.abs(part.at[0]) <= 1);
+  const optical = modality.parts.filter((part) => !part.structural);
+  const offAxis = optical.filter((part) => Math.abs(part.at[0]) > 1);
+  const onAxis = optical.filter((part) => Math.abs(part.at[0]) <= 1);
 
   return [
     // Furthest out along the arm first: that is the source end of it.
     ...offAxis.sort((a, b) => a.at[0] - b.at[0]),
     ...onAxis.sort((a, b) => a.at[1] - b.at[1]),
   ];
+}
+
+/**
+ * The stand, top to bottom as you would look at it.
+ *
+ * Kept separate from the light-path list because it answers a different
+ * question — not "where does the light go" but "which of these do I touch".
+ * Ordered downwards because that is how someone scanning a photograph of a
+ * microscope reads it: eyepiece at the top, base at the bottom.
+ */
+export function standParts(modality: Modality): Part[] {
+  return modality.parts.filter((part) => part.structural).sort((a, b) => b.at[1] - a.at[1]);
 }
 
 /** Conjugate-plane groups, which are the thing a light path is read for. */

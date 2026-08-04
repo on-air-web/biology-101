@@ -23,7 +23,7 @@
  * Canonical units: millimetres, optical axis +Y pointing up.
  */
 
-import type { ProfileStation, Solid, Vec3 } from './scope-geometry';
+import type { BoxSolid, ProfileStation, Solid, Vec3 } from './scope-geometry';
 
 export type PartKind =
   | 'source'
@@ -37,7 +37,9 @@ export type PartKind =
   | 'detector'
   | 'prism'
   | 'polariser'
-  | 'pinhole';
+  | 'pinhole'
+  /** Structural: the stand, not the light path. */
+  | 'body';
 
 export interface Part {
   id: string;
@@ -56,6 +58,17 @@ export interface Part {
   ifWrong?: string;
   /** Named conjugate plane this part sits in, where it sits in one. */
   conjugate?: 'field' | 'aperture';
+  /**
+   * Half-extents of a rectangular block. Present instead of a radius/thickness
+   * for the parts of the stand that are not surfaces of revolution.
+   */
+  box?: Vec3;
+  /**
+   * The stand rather than the optics: base, limb, stage, knobs. Carried in the
+   * same list so it is hoverable and labelled like everything else, but kept
+   * out of the light-path ordering, where it would be nonsense.
+   */
+  structural?: boolean;
 }
 
 export type RayBand =
@@ -283,6 +296,143 @@ const camera: Part = {
 };
 
 /* -------------------------------------------------------------------------
+ * The stand.
+ *
+ * An optical train on its own is a stack of discs floating in space, and a
+ * student cannot map "condenser aperture diaphragm" onto the knob they are
+ * about to turn. These are the parts you put your hands on. They carry no
+ * light, so they are marked structural and kept out of the light-path list —
+ * but they are hoverable and labelled like everything else, because "which one
+ * is the coarse focus" is a real question.
+ *
+ * The limb sits behind the column at +Z rather than beside it, which is where
+ * it is on a real stand and which makes rotating the scene worth doing: the
+ * arm swings round behind the optics.
+ */
+
+const LIMB_Z = 60;
+
+const base: Part = {
+  id: 'base',
+  name: 'Base',
+  kind: 'body',
+  structural: true,
+  at: [0, -224, 10],
+  box: [88, 24, 58],
+  radius: 88,
+  thickness: 48,
+  role: 'The foot of the stand, and on a transmitted-light instrument the housing for the lamp and the collector lens. Its mass is not incidental — a light stand transmits every knock from the bench into the image.',
+  ifWrong:
+    'A microscope on the same bench as a centrifuge will show it at high magnification. Vibration is the reason these are heavy and the reason serious imaging goes on an isolation table.',
+};
+
+const limb: Part = {
+  id: 'limb',
+  name: 'Limb (arm)',
+  kind: 'body',
+  structural: true,
+  // Reaches from the top of the base to the head, so the casting is continuous
+  // rather than floating above the foot.
+  at: [0, -2, LIMB_Z],
+  box: [28, 202, 18],
+  radius: 28,
+  thickness: 404,
+  role: 'The vertical casting that carries the focus mechanism and holds the head above the stage. Everything that must not move relative to anything else is bolted to this.',
+};
+
+const stage: Part = {
+  id: 'stage',
+  name: 'Stage',
+  kind: 'body',
+  structural: true,
+  at: [0, -14, 4],
+  box: [72, 4, 48],
+  radius: 72,
+  thickness: 8,
+  role: 'Holds the slide, and on a mechanical stage moves it in x and y by known amounts. On an upright stand the stage moves for focus on some instruments and the nosepiece moves on others.',
+  ifWrong:
+    'A slide that is not flat on the stage is not perpendicular to the optical axis, so one side of the field focuses before the other — usually blamed on the objective.',
+};
+
+const focusKnob: Part = {
+  id: 'focus-knob',
+  name: 'Coarse and fine focus',
+  kind: 'body',
+  structural: true,
+  at: [34, -70, LIMB_Z],
+  axis: AXIS_X,
+  radius: 22,
+  thickness: 26,
+  role: 'Coaxial knobs driving the fine mechanism that sets the distance between objective and specimen. The fine control moves a few micrometres per turn, which is the scale the depth of field is measured in.',
+  ifWrong:
+    'Focusing downwards onto a slide with a high-power objective drives the front lens into the coverslip. Focus down while watching from the side, then up while watching down the tube.',
+};
+
+const substage: Part = {
+  id: 'substage',
+  name: 'Substage condenser carrier',
+  kind: 'body',
+  structural: true,
+  at: [0, -95, 26],
+  box: [26, 34, 24],
+  radius: 26,
+  thickness: 68,
+  role: 'The bracket that raises and lowers the condenser and carries its centring screws. Setting up Köhler illumination is almost entirely a matter of this bracket and the two diaphragms on it.',
+  ifWrong:
+    'Racked fully down — where it often lives, because that makes the field look evenly lit — the condenser is not imaging the field diaphragm anywhere near the specimen and the illumination is not Köhler.',
+};
+
+const nosepiece: Part = {
+  id: 'nosepiece',
+  name: 'Nosepiece (turret)',
+  kind: 'body',
+  structural: true,
+  at: [0, 90, 0],
+  radius: 38,
+  thickness: 14,
+  role: 'The revolving turret the objectives screw into. Parfocal objectives are matched so that changing magnification leaves the specimen nearly in focus; parcentric ones leave it nearly in the middle.',
+  ifWrong:
+    'Rotating the turret the short way round on an inverted or oil setup drags a dry objective through the immersion oil on the way past.',
+};
+
+const head: Part = {
+  id: 'head',
+  name: 'Head and body tube',
+  kind: 'body',
+  structural: true,
+  at: [0, 180, 0],
+  radius: 32,
+  thickness: 110,
+  role: 'The upper casting carrying the tube lens and splitting light between the eyepieces and the camera port. The infinity space below it is where filter cubes and prisms can be inserted without shifting focus.',
+};
+
+/** The stand for an upright transmitted-light instrument. */
+const TRANSMITTED_STAND: Part[] = [base, limb, substage, stage, focusKnob, nosepiece, head];
+
+/** An epi stand needs no substage, and gains a housing for the filter cube. */
+const EPI_STAND: Part[] = [
+  base,
+  limb,
+  stage,
+  focusKnob,
+  nosepiece,
+  {
+    id: 'cube-turret',
+    name: 'Filter cube turret',
+    kind: 'body',
+    structural: true,
+    at: [0, Y.dichroic, 0],
+    box: [40, 26, 40],
+    radius: 40,
+    thickness: 52,
+    role: 'Holds four to six filter cubes, each carrying a matched excitation filter, dichroic and emission filter, and swings the chosen one into the infinity space above the objective.',
+    ifWrong:
+      'Cubes are matched sets. Mixing an excitation filter from one with the dichroic of another is how excitation light ends up in the emission channel, and it is invisible until the background is unaccountably high.',
+  },
+  head,
+];
+
+/* -------------------------------------------------------------------------
  * Ray helpers. Rays are polylines through the correct planes — see the note at
  * the top about what is and is not claimed for them.
  * ---------------------------------------------------------------------- */
@@ -380,6 +530,7 @@ const brightfield: Modality = {
     intermediateImage,
     eyepiece,
     camera,
+    ...TRANSMITTED_STAND,
   ],
   rays: [
     illuminationRay('illum-a', 9),
@@ -460,6 +611,7 @@ const epifluorescence: Modality = {
     tubeLens,
     intermediateImage,
     camera,
+    ...EPI_STAND,
   ],
   rays: [
     {
@@ -620,6 +772,7 @@ const confocal: Modality = {
       ifWrong:
         'Gain is not signal. Turning it up brightens the display and amplifies shot noise with it; more photons come only from more laser, longer dwell, or a better dye.',
     },
+    ...EPI_STAND,
   ],
   rays: [
     {
@@ -767,6 +920,7 @@ const phaseContrast: Modality = {
     intermediateImage,
     eyepiece,
     camera,
+    ...TRANSMITTED_STAND,
   ],
   rays: [
     {
@@ -912,6 +1066,7 @@ const dic: Modality = {
     intermediateImage,
     eyepiece,
     camera,
+    ...TRANSMITTED_STAND,
   ],
   rays: [
     {
@@ -1056,10 +1211,21 @@ export function profileFor(part: Part): ProfileStation[] {
     case 'source':
     case 'detector':
     case 'prism':
+    case 'body':
       return discProfile(part.radius, part.thickness);
     default:
       return discProfile(part.radius, part.thickness);
   }
+}
+
+/** True when the part is a rectangular block rather than a surface of revolution. */
+export function isBox(part: Part): boolean {
+  return part.box !== undefined;
+}
+
+/** A block as the renderer wants it. Only valid when `isBox(part)`. */
+export function boxFor(part: Part): BoxSolid {
+  return { at: part.at, half: part.box ?? [part.radius, part.thickness / 2, part.radius] };
 }
 
 /** A part as the renderer wants it. */

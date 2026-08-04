@@ -6,6 +6,7 @@ import {
   defaultBands,
   explore,
   partsInLightOrder,
+  standParts,
 } from './compute';
 
 const BRIGHTFIELD = { modalityId: 'brightfield', criterion: 'abbe' as const };
@@ -90,11 +91,23 @@ describe('partsInLightOrder', () => {
     }
   });
 
-  it('keeps every part exactly once', () => {
+  it('keeps every optical part exactly once, and no structural one', () => {
     for (const modality of MODALITIES) {
       const ordered = partsInLightOrder(modality);
-      expect(ordered).toHaveLength(modality.parts.length);
-      expect(new Set(ordered.map((p) => p.id)).size).toBe(modality.parts.length);
+      const optical = modality.parts.filter((part) => !part.structural);
+      expect(ordered).toHaveLength(optical.length);
+      expect(new Set(ordered.map((p) => p.id)).size).toBe(optical.length);
+      // The stand carries no light, so listing it in a light path would be
+      // nonsense — the base sits below the lamp and the limb behind everything.
+      expect(ordered.some((part) => part.structural)).toBe(false);
+    }
+  });
+
+  it('accounts for every part between the two lists, losing none', () => {
+    for (const modality of MODALITIES) {
+      const both = [...partsInLightOrder(modality), ...standParts(modality)];
+      expect(both).toHaveLength(modality.parts.length);
+      expect(new Set(both.map((p) => p.id)).size).toBe(modality.parts.length);
     }
   });
 
@@ -112,6 +125,63 @@ describe('partsInLightOrder', () => {
     const ids = partsInLightOrder(getModality('epifluorescence')!).map((p) => p.id);
     expect(ids.indexOf('lamp')).toBe(0);
     expect(ids.indexOf('excitation-filter')).toBeLessThan(ids.indexOf('specimen'));
+  });
+});
+
+describe('standParts', () => {
+  it('gives every modality a recognisable stand', () => {
+    // Without these the drawing is a stack of discs in mid-air and nobody can
+    // map "condenser aperture diaphragm" onto the knob they are about to turn.
+    for (const modality of MODALITIES) {
+      const stand = standParts(modality);
+      expect(stand.length, modality.id).toBeGreaterThan(4);
+      for (const id of ['base', 'limb', 'stage', 'nosepiece', 'head']) {
+        expect(
+          stand.map((p) => p.id),
+          `${modality.id} is missing ${id}`,
+        ).toContain(id);
+      }
+    }
+  });
+
+  it('reads downwards, the way you look at an instrument', () => {
+    for (const modality of MODALITIES) {
+      const heights = standParts(modality).map((part) => part.at[1]);
+      for (let i = 1; i < heights.length; i += 1) {
+        expect(heights[i]!, modality.id).toBeLessThanOrEqual(heights[i - 1]!);
+      }
+    }
+  });
+
+  it('marks every stand part structural and gives it a role', () => {
+    for (const modality of MODALITIES) {
+      for (const part of standParts(modality)) {
+        expect(part.structural, `${modality.id}/${part.id}`).toBe(true);
+        expect(part.kind, `${modality.id}/${part.id}`).toBe('body');
+        expect(part.role.length, `${modality.id}/${part.id}`).toBeGreaterThan(60);
+        // Nothing structural may claim to sit in a conjugate plane.
+        expect(part.conjugate, `${modality.id}/${part.id}`).toBeUndefined();
+      }
+    }
+  });
+
+  it('gives the transmitted stands a substage and the epi stands a cube turret', () => {
+    const ids = (id: string) => standParts(getModality(id)!).map((p) => p.id);
+    expect(ids('brightfield')).toContain('substage');
+    expect(ids('phase-contrast')).toContain('substage');
+    expect(ids('epifluorescence')).toContain('cube-turret');
+    expect(ids('epifluorescence')).not.toContain('substage');
+    expect(ids('confocal')).toContain('cube-turret');
+  });
+
+  it('puts the base below the lamp and the limb behind the column', () => {
+    const brightfield = getModality('brightfield')!;
+    const base = brightfield.parts.find((p) => p.id === 'base')!;
+    const lamp = brightfield.parts.find((p) => p.kind === 'source')!;
+    const limb = brightfield.parts.find((p) => p.id === 'limb')!;
+    expect(base.at[1]).toBeLessThan(lamp.at[1]);
+    // Behind, in +Z, so rotating the scene swings it round the optics.
+    expect(limb.at[2]).toBeGreaterThan(20);
   });
 });
 

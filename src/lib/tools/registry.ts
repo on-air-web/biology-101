@@ -28,6 +28,7 @@ import { spectraViewerMeta } from '@/tools/spectra-viewer/meta';
 import { filterCompatibilityMeta } from '@/tools/filter-compatibility/meta';
 import { fretPairMeta } from '@/tools/fret-pair/meta';
 import { fluorophoreBrightnessMeta } from '@/tools/fluorophore-brightness/meta';
+import { microscopeExplorerMeta } from '@/tools/microscope-explorer/meta';
 import { PLANNED_TOOLS } from './planned';
 import { EXTERNAL_TOOLS } from './external';
 import { STATISTICS_TOOLS } from './statistics-tools';
@@ -66,6 +67,7 @@ export const TOOLS: readonly ToolMeta[] = [
   filterCompatibilityMeta,
   fretPairMeta,
   fluorophoreBrightnessMeta,
+  microscopeExplorerMeta,
   ...EXTERNAL_TOOLS,
   ...STATISTICS_TOOLS,
   ...PLANNED_TOOLS,

@@ -43,6 +43,7 @@ const TOOL_COMPONENTS: Record<string, ComponentType> = {
   'filter-compatibility': dynamic(() => import('@/tools/filter-compatibility/ui')),
   'fret-pair': dynamic(() => import('@/tools/fret-pair/ui')),
   'fluorophore-brightness': dynamic(() => import('@/tools/fluorophore-brightness/ui')),
+  'microscope-explorer': dynamic(() => import('@/tools/microscope-explorer/ui')),
 };
 
 export function ToolBody({ toolId }: { toolId: string }) {

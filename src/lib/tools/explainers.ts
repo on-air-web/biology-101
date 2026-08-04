@@ -1136,6 +1136,58 @@ export const TOOL_EXPLAINERS: Record<string, ToolExplainer> = {
       },
     ],
   },
+
+  'microscope-explorer': {
+    whenToUse:
+      'Use this to learn what the parts of a microscope are for and how the light gets from the lamp to the detector, or to work out why a technique behaves as it does — why closing the condenser sharpens the image and costs resolution, why a phase plate has to sit at the back focal plane, why a confocal pinhole sections. It is a teaching diagram with real resolution figures attached; it is not an optical design tool, and it will not tell you which objective to buy.',
+    workedExample: {
+      scenario:
+        'You are asked why phase contrast looks softer than brightfield on the same 0.75 NA objective.',
+      inputs: [
+        { label: 'Instrument', value: 'Brightfield, then Phase contrast' },
+        { label: 'Objective', value: 'NA 0.75, air (fitted on both)' },
+        { label: 'Wavelength', value: '550 nm' },
+        { label: 'Criterion', value: 'Abbe' },
+      ],
+      result: 'Brightfield 333 nm; phase contrast 423 nm, from the same objective.',
+      reading:
+        'The condenser annulus cuts the illuminating aperture from 0.9 to 0.55, and Abbe’s two-NA form averages the two — so the contrast that makes an unstained cell visible is paid for in resolution, by about a quarter, before anything else happens.',
+    },
+    commonMistakes: [
+      'Believing phase contrast or DIC resolves more than brightfield. Neither moves the diffraction limit by a nanometre. They convert phase into amplitude so a transparent object becomes visible at all, and phase contrast actually costs resolution through the annulus — visibility and resolution are different quantities and are traded against each other constantly.',
+      'Treating the confocal pinhole as a resolution device. Closing it below one Airy unit buys at most a factor of √2 laterally, and only by discarding most of the signal. What a pinhole does is reject out-of-focus light, which is sectioning; the reason a confocal image looks so much better on a thick sample is that the haze is gone, not that anything finer is resolved.',
+      'Confusing the two sets of conjugate planes. Field planes — field diaphragm, specimen, intermediate image — focus together; aperture planes — lamp filament, condenser diaphragm, objective back focal plane — focus together and never with the first set. Almost every alignment mistake in transmitted light is one of these mistaken for the other.',
+      'Closing the condenser aperture for contrast without knowing the price. It is the easiest contrast available and it directly lowers the illuminating NA, so the crisper-looking image is carrying genuinely less information. Filling 70 to 90% of the objective back aperture is the usual compromise.',
+      'Reading the drawing as an optical design. The spacings are schematic, chosen so the order of the parts and the conjugate planes are right; no focal length is claimed and no ray is traced through a prescription. The resolution figures are real closed forms and do not come from the drawing.',
+    ],
+    faq: [
+      {
+        question: 'Why do three different resolution figures exist for one objective?',
+        answer:
+          'Because Abbe, Rayleigh and Sparrow define "resolved" differently — the grating limit, the first-zero overlap, and the point at which the dip between two maxima vanishes. They differ by about 20% across the range, and a paper quoting one while naming another is common enough that the criterion is a selectable model here rather than a hidden constant.',
+      },
+      {
+        question: 'Why is axial resolution so much worse than lateral?',
+        answer:
+          'Lateral resolution goes as λ/NA and axial as 2nλ/NA², so the axial figure degrades with the square of the aperture. For a 1.4 NA oil objective at 520 nm that is about 186 nm laterally and 804 nm axially — a factor of four, and the reason a widefield image of anything thick looks hazy rather than merely soft.',
+      },
+      {
+        question: 'Can I really rotate it, or is it a fixed drawing?',
+        answer:
+          'It is genuinely three-dimensional: the parts are surfaces of revolution placed in 3D and projected, and the ray paths are polylines in the same coordinates. That is why the light path stays attached to the glass at every angle rather than being a second drawing kept in step by hand.',
+      },
+      {
+        question: 'Why does epifluorescence use the objective as its condenser?',
+        answer:
+          'Because the emission is very much weaker than the excitation, and separating them by wavelength at a dichroic is far easier than separating them by geometry. Sending both down the same objective also means the illumination and collection are automatically aligned, which a transmitted arrangement has to achieve mechanically.',
+      },
+      {
+        question: 'Where are TIRF, spinning disc and the super-resolution methods?',
+        answer:
+          'Not built yet. The five here share most of their hardware, so the part library and the ray machinery were built once and correctly on those; the rest drop in as data rather than code. STED and STORM also need concepts a ray diagram alone cannot carry — a depletion doughnut and photoswitching statistics — so they will want more than another light path.',
+      },
+    ],
+  },
 };
 
 export function getExplainer(toolId: string): ToolExplainer | undefined {

@@ -70,6 +70,31 @@ const FIT_MARGIN = 0.86;
 /** Minimum vertical separation between two labels, in viewBox units. */
 const LABEL_GAP = 20;
 
+/** Clear space kept between a label and the edge of the frame, in viewBox units. */
+const FRAME_PAD = 10;
+
+/**
+ * Rough advance width of one character of the label face at 12px.
+ *
+ * Only ever used to decide how far out a label may sit before it runs off the
+ * panel, so an estimate is enough and measuring real text would mean a layout
+ * pass per label per frame of a drag.
+ */
+const LABEL_CHAR_WIDTH = 6.4;
+
+/**
+ * How close to the optical axis a part counts as being on it, in schematic
+ * millimetres.
+ *
+ * Measured in world space rather than on screen. Anything within this distance
+ * has no natural side to be labelled on and gets dealt out to balance the two
+ * columns — but a screen-space test answers differently at every zoom level and
+ * every yaw, so the labels changed columns as the instrument was turned or
+ * scaled. The distance of a part from the axis does not depend on how you are
+ * looking at it, and neither should the answer.
+ */
+const ON_AXIS_MM = 6;
+
 /**
  * How long after a drag ends before the labels come back, in milliseconds.
  *
@@ -238,6 +263,24 @@ export function MicroscopeScene({
   const pinchFrom = useRef<{ distance: number; scale: number } | null>(null);
 
   /**
+   * Whether the gesture in progress has moved the view.
+   *
+   * A drag that begins on a part still ends with a click on that part, so
+   * without this every turn of the instrument selects whatever happened to be
+   * under the pointer when the turn began. A ref rather than state: it is read
+   * inside an event handler and nothing on screen depends on it.
+   */
+  const moved = useRef(false);
+
+  const selectPart = useCallback(
+    (id: string | undefined) => {
+      if (moved.current) return;
+      onSelectPart(id);
+    },
+    [onSelectPart],
+  );
+
+  /**
    * The instrument may never be zoomed out smaller than it fits.
    *
    * Below that there is nothing to see but empty frame, and it is a state
@@ -307,6 +350,9 @@ export function MicroscopeScene({
       // Not capturable; dragging still works while the pointer stays inside.
     }
     pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    // First finger down starts a fresh gesture; a second one joining a pinch
+    // already under way must not wipe the record that the view has moved.
+    if (pointers.current.size === 1) moved.current = false;
 
     if (pointers.current.size === 2) {
       // Second finger down: stop rotating and start pinching, or the scene
@@ -331,6 +377,7 @@ export function MicroscopeScene({
 
     const pinch = pinchFrom.current;
     if (pointers.current.size >= 2 && pinch && pinch.distance > 0) {
+      moved.current = true;
       zoomTo((pinch.scale * spread()) / pinch.distance);
       return;
     }
@@ -344,6 +391,7 @@ export function MicroscopeScene({
     // wait out a delay before the labels clear.
     if (Math.hypot(event.clientX - from.x, event.clientY - from.y) < DRAG_THRESHOLD_PX) return;
 
+    moved.current = true;
     holdLabels();
     setView((current) => ({
       ...current,
@@ -419,8 +467,11 @@ export function MicroscopeScene({
       key: string;
       text: string;
       colour: string;
+      /** Where the thing being named actually sits on screen. */
       x: number;
       y: number;
+      /** Its distance from the optical axis in world millimetres. */
+      axisOffset: number;
       faint: boolean;
     };
     const anchors: Anchor[] = [];
@@ -431,10 +482,14 @@ export function MicroscopeScene({
       if (!ray) continue;
 
       // The point furthest from the optical axis: that is where there is room.
-      let best = project(squash(ray.points[0]!), view);
+      let bestWorld = ray.points[0]!;
+      let best = project(squash(bestWorld), view);
       for (const worldPoint of ray.points) {
         const projected = project(squash(worldPoint), view);
-        if (Math.abs(projected.x) > Math.abs(best.x)) best = projected;
+        if (Math.abs(projected.x) > Math.abs(best.x)) {
+          best = projected;
+          bestWorld = worldPoint;
+        }
       }
       anchors.push({
         key: `band-${band.band}`,
@@ -442,6 +497,7 @@ export function MicroscopeScene({
         colour: BAND_STYLE[band.band].stroke,
         x: best.x,
         y: best.y,
+        axisOffset: Math.hypot(bestWorld[0], bestWorld[2]),
         faint: false,
       });
     }
@@ -453,15 +509,20 @@ export function MicroscopeScene({
         colour: entry.part.structural ? 'var(--color-ink-faint)' : 'var(--color-ink-muted)',
         x: entry.anchor.x,
         y: entry.anchor.y,
+        axisOffset: Math.hypot(entry.part.at[0], entry.part.at[2]),
         // The stand is written fainter than the optics, as it is drawn fainter.
         faint: entry.part.structural === true,
       });
     }
 
-    const clearance = Math.min(
-      framing(modality, showBody).halfWidth * view.scale + 14,
-      VIEWBOX.width / 2 - 96,
+    // Only label what is in the frame. Zoomed in, most of the instrument is
+    // off the panel, and a leader line to a part nobody can see runs to the
+    // edge and appears to name whatever is drawn there instead.
+    const visible = anchors.filter(
+      (entry) => Math.abs(entry.x) <= VIEWBOX.width / 2 && Math.abs(entry.y) <= VIEWBOX.height / 2,
     );
+
+    const clearance = framing(modality, showBody).halfWidth * view.scale + 14;
 
     /**
      * Split into two columns, balancing whatever sits on the axis.
@@ -469,14 +530,13 @@ export function MicroscopeScene({
      * Nearly every part of a microscope is centred on the optical axis, so
      * sorting purely by the sign of x drops the whole instrument into one
      * column: twenty labels stacked down the right, each pushed further from
-     * the part it names than the last. Anything within ON_AXIS of the centre is
-     * therefore dealt out left and right alternately, by height, which halves
-     * the stack and keeps each label near its own anchor.
+     * the part it names than the last. Anything within ON_AXIS_MM of the axis
+     * is therefore dealt out left and right alternately, by height, which
+     * halves the stack and keeps each label near its own anchor.
      */
-    const ON_AXIS = 6;
-    const offAxis = anchors.filter((entry) => Math.abs(entry.x) > ON_AXIS);
-    const onAxis = [...anchors]
-      .filter((entry) => Math.abs(entry.x) <= ON_AXIS)
+    const offAxis = visible.filter((entry) => entry.axisOffset > ON_AXIS_MM);
+    const onAxis = visible
+      .filter((entry) => entry.axisOffset <= ON_AXIS_MM)
       .sort((a, b) => a.y - b.y);
 
     const columns: Anchor[][] = [
@@ -484,19 +544,55 @@ export function MicroscopeScene({
       [...offAxis.filter((entry) => entry.x >= 0), ...onAxis.filter((_, i) => i % 2 === 1)],
     ];
 
+    const topBound = -VIEWBOX.height / 2 + FRAME_PAD;
+    const bottomBound = VIEWBOX.height / 2 - FRAME_PAD;
+
     return columns.flatMap((column, index) => {
       const side: 1 | -1 = index === 0 ? -1 : 1;
       const placed = [...column].sort((a, b) => a.y - b.y);
-      for (let i = 1; i < placed.length; i += 1) {
-        const previous = placed[i - 1]!;
-        const current = placed[i]!;
-        if (current.y - previous.y < LABEL_GAP) current.y = previous.y + LABEL_GAP;
+
+      /**
+       * Spread the column apart downwards, then fold it back up inside the
+       * frame.
+       *
+       * Two passes rather than one. Pushing each collision down onto the next
+       * free row is enough when the labels are already roughly spread, but a
+       * crowded column — which is what turning or zooming the instrument
+       * produces, as anchors bunch together in projection — walks its last few
+       * rows off the bottom of the panel. The upward pass pins the bottom of
+       * the column to the frame and packs back towards the top.
+       */
+      let cursor = topBound;
+      const rows = placed.map((entry) => {
+        const y = Math.max(entry.y, cursor);
+        cursor = y + LABEL_GAP;
+        return { entry, y };
+      });
+      cursor = bottomBound;
+      for (let i = rows.length - 1; i >= 0; i -= 1) {
+        const row = rows[i]!;
+        row.y = Math.min(row.y, cursor);
+        cursor = row.y - LABEL_GAP;
       }
-      return placed.map((entry) => ({
-        ...entry,
-        side,
-        textX: side * Math.max(Math.abs(entry.x) + 14, clearance),
-      }));
+
+      return rows.map(({ entry, y }) => {
+        // The text runs outwards from textX, so it is the far end of the word
+        // that has to fit on the panel. Without this a label whose anchor has
+        // been zoomed out towards the edge is set beyond the frame and drawn
+        // half-cut or not at all.
+        const room = VIEWBOX.width / 2 - FRAME_PAD - entry.text.length * LABEL_CHAR_WIDTH;
+        const reach = Math.max(Math.abs(entry.x) + 14, clearance);
+        return {
+          ...entry,
+          side,
+          // Where the label is set, and where the thing it names really is.
+          // Kept apart, so the leader can be drawn to the part rather than
+          // sideways from the label to nothing.
+          y,
+          anchorY: entry.y,
+          textX: side * Math.max(0, Math.min(reach, room)),
+        };
+      });
     });
   }, [modality, view, visibleBands, squash, labelsVisible, showBody, rendered]);
 
@@ -586,7 +682,7 @@ export function MicroscopeScene({
                 facing={item.entry.drawn.facing}
                 selected={item.entry.part.id === selectedPartId}
                 dimmed={selectedPartId !== undefined && item.entry.part.id !== selectedPartId}
-                onSelect={onSelectPart}
+                onSelect={selectPart}
               />
             ) : (
               <path
@@ -607,7 +703,7 @@ export function MicroscopeScene({
             <g key={entry.key} pointerEvents="none" opacity={selectedPartId ? 0.3 : 1}>
               <line
                 x1={entry.x}
-                y1={entry.y}
+                y1={entry.anchorY}
                 x2={entry.textX - entry.side * 4}
                 y2={entry.y}
                 stroke={entry.colour}
@@ -751,7 +847,15 @@ function PartShape({
       // Click rather than hover. Hover made the panel flicker through half the
       // instrument on the way to the part you wanted, and it gives a touch
       // user nothing at all.
-      onFocus={() => onSelect(part.id)}
+      //
+      // Focus selects only when the focus came from the keyboard, which is what
+      // :focus-visible answers. Pressing the mouse on a part focuses it too, so
+      // selecting on every focus meant the click that followed found the part
+      // already selected and toggled it straight back off: the detail and its
+      // label appeared on the way down and were gone again on the way up.
+      onFocus={(event) => {
+        if (event.currentTarget.matches(':focus-visible')) onSelect(part.id);
+      }}
       onClick={(event) => {
         event.stopPropagation();
         onSelect(selected ? undefined : part.id);

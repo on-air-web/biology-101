@@ -345,7 +345,7 @@ export default function StructureAlignmentTool() {
         </div>
       ) : !first || !second ? (
         <p className="mt-4 rounded-lab bg-surface-raised p-4 text-[13px] text-ink-muted">
-          Load two structures to align them. Files are read in your browser and neither is uploaded.
+          Load two structures to align them. Neither file is uploaded.
         </p>
       ) : null}
 
@@ -353,7 +353,6 @@ export default function StructureAlignmentTool() {
         formula="TM-score = (1/L) Σ 1/(1 + (dᵢ/d₀)²);  d₀ = 1.24·∛(L−15) − 1.8"
         model="TM-align: iterative dynamic programming over a distance-weighted score matrix, with closed-form superposition"
         citations={structureAlignmentMeta.citations}
-        computeLocation={structureAlignmentMeta.computeLocation}
       />
 
       <p className="mt-3 text-[12px] leading-[1.6] text-ink-faint">

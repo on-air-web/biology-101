@@ -159,7 +159,6 @@ export default function MeltingTemperatureTool() {
         formula="Tm = ΔH° / (ΔS° + R·ln(C_T/4)),  ΔS° corrected by 0.368·(N−1)·ln[Na⁺]"
         model={meltingTemperatureMeta.models?.find((model) => model.id === modelId)?.name}
         citations={meltingTemperatureMeta.citations}
-        computeLocation={meltingTemperatureMeta.computeLocation}
       />
 
       <p className="mt-3 text-[12px] leading-[1.6] text-ink-faint">

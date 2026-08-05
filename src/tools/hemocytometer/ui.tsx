@@ -256,7 +256,6 @@ export default function HemocytometerTool() {
             : 'Custom chamber geometry'
         }
         citations={hemocytometerMeta.citations}
-        computeLocation={hemocytometerMeta.computeLocation}
       />
 
       <p className="mt-3 text-[12px] leading-[1.6] text-ink-faint">

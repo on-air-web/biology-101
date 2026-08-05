@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   },
   description:
     'Calculators, sequence tools and laboratory utilities for biology, in one place. ' +
-    'Free, fast, and computed entirely in your browser.',
+    'Free, fast, and free of accounts.',
   applicationName: SITE.name,
   // og:image, the icon and the touch icon all come from the file conventions
   // in this directory (opengraph-image.png, icon.svg, apple-icon.png), which
@@ -28,14 +28,14 @@ export const metadata: Metadata = {
     title: 'Biology 101 — laboratory calculators and sequence tools',
     description:
       'Calculators, sequence tools and laboratory utilities for biology, in one place. ' +
-      'Runs in your browser — nothing you enter is uploaded.',
+      'Nothing you enter is uploaded.',
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Biology 101 — laboratory calculators and sequence tools',
     description:
       'Calculators, sequence tools and laboratory utilities for biology, in one place. ' +
-      'Runs in your browser — nothing you enter is uploaded.',
+      'Nothing you enter is uploaded.',
   },
 };
 

@@ -70,7 +70,6 @@ export default function GcContentTool() {
       <Ladder
         formula="GC% = (G + C + S) ÷ (G + C + S + A + T + W) × 100"
         citations={gcContentMeta.citations}
-        computeLocation={gcContentMeta.computeLocation}
       />
     </div>
   );

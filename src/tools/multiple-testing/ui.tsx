@@ -159,7 +159,6 @@ export default function MultipleTestingTool() {
         }
         model={METHODS.find((entry) => entry.value === method)?.label}
         citations={multipleTestingMeta.citations}
-        computeLocation={multipleTestingMeta.computeLocation}
       />
     </div>
   );

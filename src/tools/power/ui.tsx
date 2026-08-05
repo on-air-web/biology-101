@@ -189,7 +189,6 @@ export default function PowerTool() {
         formula="power = P(|T′| > t₍₁−α/2₎),  T′ noncentral t with δ = d√(n/2)"
         model="Noncentral t, two-sided"
         citations={powerMeta.citations}
-        computeLocation={powerMeta.computeLocation}
       />
 
       <p className="mt-3 text-[12px] text-ink-faint">

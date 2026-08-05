@@ -326,7 +326,6 @@ export default function RecipeScalerTool() {
       <Ladder
         formula="amount_new = amount_old × (batch_new ÷ batch_old)"
         citations={recipeScalerMeta.citations}
-        computeLocation={recipeScalerMeta.computeLocation}
       />
 
       <p className="mt-3 text-[12px] leading-[1.6] text-ink-faint">

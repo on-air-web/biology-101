@@ -10,7 +10,7 @@ export const structureAlignmentMeta: ToolMeta = {
     'Load two PDB or mmCIF files and align them by geometry alone, without needing their ' +
     'sequences to match. Reports TM-score under both normalisations, RMSD over the aligned ' +
     'residues, the alignment itself and where the two structures diverge. Both files are read ' +
-    'in your browser and neither is uploaded.',
+    'locally and neither is uploaded.',
   keywords: [
     'structure alignment',
     'structural alignment',

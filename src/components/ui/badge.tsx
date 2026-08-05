@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import type { ComputeLocation, ToolStatus } from '@/lib/tools/types';
+import type { ToolStatus } from '@/lib/tools/types';
 
 const TONES = {
   neutral: 'border-line-strong text-ink-muted',
@@ -33,16 +33,8 @@ export function Badge({
   );
 }
 
-/** Status and privacy badges are derived from registry data, never hand-written. */
+/** Status badges are derived from registry data, never hand-written. */
 export function StatusBadge({ status }: { status: ToolStatus }) {
   if (status === 'stable') return null;
   return <Badge tone="attention">{status}</Badge>;
-}
-
-export function ComputeBadge({ location }: { location: ComputeLocation }) {
-  return (
-    <Badge tone={location === 'client' ? 'brand' : 'neutral'}>
-      {location === 'client' ? 'Runs in your browser' : 'Server'}
-    </Badge>
-  );
 }

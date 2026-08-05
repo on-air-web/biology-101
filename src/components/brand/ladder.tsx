@@ -1,4 +1,4 @@
-import type { Citation, ComputeLocation } from '@/lib/tools/types';
+import type { Citation } from '@/lib/tools/types';
 import { cn } from '@/lib/utils';
 
 interface LadderProps {
@@ -7,7 +7,6 @@ interface LadderProps {
   /** Name of the selected model, where a tool offers more than one. */
   model?: string;
   citations: Citation[];
-  computeLocation: ComputeLocation;
   className?: string;
 }
 
@@ -19,7 +18,7 @@ interface LadderProps {
  * it. It appears under every computed value in the product, always, and is not
  * collapsible — provenance that hides is provenance that gets ignored.
  */
-export function Ladder({ formula, model, citations, computeLocation, className }: LadderProps) {
+export function Ladder({ formula, model, citations, className }: LadderProps) {
   return (
     <figure className={cn('mt-6', className)}>
       <div className="ladder-rule" aria-hidden="true" />
@@ -68,12 +67,6 @@ export function Ladder({ formula, model, citations, computeLocation, className }
             );
           })}
         </ul>
-
-        <p className="text-ink-muted">
-          {computeLocation === 'client'
-            ? 'Calculated in your browser. Nothing you entered was sent anywhere.'
-            : 'Calculated on our server. Your inputs are sent over the network and are not stored.'}
-        </p>
       </figcaption>
     </figure>
   );

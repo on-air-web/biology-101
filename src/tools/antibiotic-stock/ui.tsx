@@ -218,7 +218,6 @@ export default function AntibioticStockTool() {
           mode === 'dose' ? 'V_stock = C_working × V_culture ÷ C_stock' : 'mass = C_stock × V_stock'
         }
         citations={antibioticStockMeta.citations}
-        computeLocation={antibioticStockMeta.computeLocation}
       />
 
       <p className="mt-3 text-[12px] leading-[1.6] text-ink-faint">

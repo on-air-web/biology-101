@@ -187,8 +187,13 @@ export type ReviewStatus = 'reviewed' | 'drafted';
 export type ToolStatus = 'stable' | 'beta' | 'planned';
 
 /**
- * 'client' means the calculation never leaves the browser. This is a privacy
- * guarantee we surface in the UI, so it must be accurate.
+ * 'client' means the calculation happens on the user's own device and the
+ * inputs are never sent anywhere.
+ *
+ * No longer rendered — the badge and the Ladder line that carried it were
+ * removed. Kept because it is a true and useful property of a tool, and
+ * because external and pipeline entries legitimately differ; drop it if
+ * nothing has read it by the next consolidation pass.
  */
 export type ComputeLocation = 'client' | 'server';
 

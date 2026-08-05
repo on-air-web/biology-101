@@ -142,11 +142,7 @@ export default function SerialDilutionTool() {
         </div>
       ) : null}
 
-      <Ladder
-        formula="Cₙ = C₀ ÷ fⁿ, transfer = V ÷ f"
-        citations={serialDilutionMeta.citations}
-        computeLocation={serialDilutionMeta.computeLocation}
-      />
+      <Ladder formula="Cₙ = C₀ ÷ fⁿ, transfer = V ÷ f" citations={serialDilutionMeta.citations} />
     </div>
   );
 }

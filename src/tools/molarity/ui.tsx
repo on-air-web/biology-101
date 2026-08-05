@@ -159,11 +159,7 @@ export default function MolarityTool() {
         placeholder={error ?? 'Fill in the fields above to calculate.'}
       />
 
-      <Ladder
-        formula={output.formula}
-        citations={molarityMeta.citations}
-        computeLocation={molarityMeta.computeLocation}
-      />
+      <Ladder formula={output.formula} citations={molarityMeta.citations} />
     </div>
   );
 }

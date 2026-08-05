@@ -7,7 +7,7 @@ unsourced or subtly wrong. Biology 101 aims to be the one place that is both
 comprehensive and trustworthy: every calculation cites the formula it uses, and
 every tool is tested against published reference values.
 
-Nothing you type is uploaded. Calculations run in your browser.
+Nothing you type is uploaded.
 
 ## Getting started
 

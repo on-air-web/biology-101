@@ -77,9 +77,7 @@ export function DataImport({
           <FileUp className="size-3.5" aria-hidden />
           Import CSV or TSV
         </button>
-        <span className="text-[11.5px] text-ink-faint">
-          {meta || 'Read in your browser. The file is not uploaded.'}
-        </span>
+        <span className="text-[11.5px] text-ink-faint">{meta || 'The file is not uploaded.'}</span>
         {columns ? (
           <button
             type="button"

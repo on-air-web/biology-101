@@ -265,7 +265,6 @@ export default function TTestTool() {
         }
         model={MODEL_NOTE[kind].split(' — ')[0]}
         citations={tTestMeta.citations}
-        computeLocation={tTestMeta.computeLocation}
       />
 
       <p className="mt-3 text-[12px] text-ink-faint">

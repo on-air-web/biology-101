@@ -347,7 +347,6 @@ export default function CentrifugeTool() {
         formula="RCF = ω²r ÷ g,  ω = 2πN ÷ 60;  k = ln(r_max/r_min) × 10¹³ ÷ (3600 ω²)"
         model="Radii in metres, g = 9.80665 m/s². Equivalent to RCF = 1.118 × 10⁻⁵ · r(cm) · N²"
         citations={centrifugeMeta.citations}
-        computeLocation={centrifugeMeta.computeLocation}
       />
     </div>
   );

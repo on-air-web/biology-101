@@ -722,7 +722,7 @@ export const TOOL_EXPLAINERS: Record<string, ToolExplainer> = {
       {
         question: 'Are my files uploaded anywhere?',
         answer:
-          'No. Both are read in your browser with FileReader and never leave the machine, which for an unreleased structure is the difference between a usable tool and one your institution will not allow.',
+          'No. Both are read locally with FileReader and never leave your machine, which for an unreleased structure is the difference between a usable tool and one your institution will not allow.',
       },
       {
         question: 'Does it accept mmCIF?',
@@ -1174,7 +1174,7 @@ export const TOOL_EXPLAINERS: Record<string, ToolExplainer> = {
       {
         question: 'Can I really rotate it, or is it a fixed drawing?',
         answer:
-          'It is genuinely three-dimensional: the parts are surfaces of revolution placed in 3D and projected, and the ray paths are polylines in the same coordinates. That is why the light path stays attached to the glass at every angle rather than being a second drawing kept in step by hand. Drag to turn it, pinch to zoom, and use full screen when the detail matters — a plain scroll is left alone so the page still scrolls past.',
+          'It is genuinely three-dimensional: the parts are surfaces of revolution placed in 3D and projected, and the ray paths are polylines in the same coordinates. That is why the light path stays attached to the glass at every angle rather than being a second drawing kept in step by hand. Drag to turn it, pinch to zoom, click any part for its detail, and use full screen when the annotation matters — a plain scroll is left alone so the page still scrolls past. Labels drop away while you are turning it and come back a moment after you let go.',
       },
       {
         question: 'Why does epifluorescence use the objective as its condenser?',

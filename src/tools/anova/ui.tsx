@@ -189,7 +189,6 @@ export default function AnovaTool() {
         formula="F = MS between ÷ MS within;  ω² = (SS_b − df₁·MS_w) ÷ (SS_total + MS_w)"
         model="One-way ANOVA, Welch pairwise with Holm correction"
         citations={anovaMeta.citations}
-        computeLocation={anovaMeta.computeLocation}
       />
 
       <p className="mt-3 text-[12px] text-ink-faint">

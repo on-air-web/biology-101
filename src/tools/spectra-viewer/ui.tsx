@@ -177,7 +177,6 @@ export default function SpectraViewerTool() {
       <Ladder
         formula="curves are peak-normalised;  laser column = EX(λ) as a fraction of the excitation maximum"
         citations={spectraViewerMeta.citations}
-        computeLocation={spectraViewerMeta.computeLocation}
       />
 
       <p className="mt-3 text-[12px] leading-[1.6] text-ink-faint">

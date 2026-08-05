@@ -88,7 +88,6 @@ export default function TranslateTool() {
         formula="codon → amino acid, 3 nt per residue"
         model={model?.name}
         citations={translateMeta.citations}
-        computeLocation={translateMeta.computeLocation}
       />
     </div>
   );

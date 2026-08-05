@@ -263,7 +263,6 @@ export default function CellSeedingTool() {
             : 'Suspension dosed into each vessel, then topped up'
         }
         citations={cellSeedingMeta.citations}
-        computeLocation={cellSeedingMeta.computeLocation}
       />
 
       <p className="mt-3 text-[12px] leading-[1.6] text-ink-faint">

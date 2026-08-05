@@ -183,7 +183,6 @@ export default function CorrelationTool() {
         }
         model={NOTE[method].split(' — ')[0]}
         citations={correlationMeta.citations}
-        computeLocation={correlationMeta.computeLocation}
       />
 
       <p className="mt-3 text-[12px] text-ink-faint">

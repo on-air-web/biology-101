@@ -361,7 +361,6 @@ export default function FilterCompatibilityTool() {
         formula="collected = ∫EM(λ)·T(λ)dλ ÷ ∫EM(λ)dλ;  excited = EX(λ_laser), or ∫EX·T dλ ÷ ∫T dλ through a filter"
         model={filterCompatibilityMeta.models?.[0]?.name}
         citations={filterCompatibilityMeta.citations}
-        computeLocation={filterCompatibilityMeta.computeLocation}
       />
 
       <p className="mt-3 text-[12px] leading-[1.6] text-ink-faint">

@@ -229,7 +229,6 @@ export default function FretPairTool() {
         formula="J = ∫F_D(λ)ε_A(λ)λ⁴dλ ÷ ∫F_D(λ)dλ;  R₀ = [9000·ln10·κ²·Φ_D·J ÷ (128π⁵N_A n⁴)]^(1/6);  E = 1 ÷ (1 + (r/R₀)⁶)"
         model={kappa.name}
         citations={fretPairMeta.citations}
-        computeLocation={fretPairMeta.computeLocation}
       />
 
       <p className="mt-3 text-[12px] leading-[1.6] text-ink-faint">

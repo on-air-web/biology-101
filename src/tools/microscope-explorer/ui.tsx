@@ -34,7 +34,7 @@ export default function MicroscopeExplorerTool() {
   const [selectedPartId, setSelectedPartId] = useState<string | undefined>();
   const [hiddenBands, setHiddenBands] = useState<RayBand[]>([]);
   const [showBody, setShowBody] = useState(true);
-  const [showRayLabels, setShowRayLabels] = useState(true);
+  const [showLabels, setShowLabels] = useState(true);
   const [na, setNa] = useState('');
   const [wavelength, setWavelength] = useState('');
   const [immersionId, setImmersionId] = useState<string>('');
@@ -127,7 +127,7 @@ export default function MicroscopeExplorerTool() {
             selectedPartId={selectedPartId}
             onSelectPart={setSelectedPartId}
             showBody={showBody}
-            showRayLabels={showRayLabels}
+            showLabels={showLabels}
           />
 
           <div className="mt-3 flex flex-wrap gap-1.5">
@@ -156,20 +156,20 @@ export default function MicroscopeExplorerTool() {
               className={cn(
                 'flex h-8 cursor-pointer items-center gap-2 rounded-lab border px-2.5 text-[12.5px]',
                 'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand',
-                showRayLabels ? 'border-line-strong text-ink' : 'border-line text-ink-faint',
+                showLabels ? 'border-line-strong text-ink' : 'border-line text-ink-faint',
               )}
             >
               <input
                 type="checkbox"
-                checked={showRayLabels}
-                onChange={() => setShowRayLabels((current) => !current)}
+                checked={showLabels}
+                onChange={() => setShowLabels((current) => !current)}
                 className="sr-only"
               />
               <Tag
-                className={cn('size-3.5', showRayLabels ? 'text-ink-muted' : 'text-ink-faint')}
+                className={cn('size-3.5', showLabels ? 'text-ink-muted' : 'text-ink-faint')}
                 aria-hidden
               />
-              Labels on the diagram
+              Labels
             </label>
           </div>
 
@@ -231,7 +231,6 @@ export default function MicroscopeExplorerTool() {
                 <li key={part.id}>
                   <button
                     type="button"
-                    onMouseEnter={() => setSelectedPartId(part.id)}
                     onFocus={() => setSelectedPartId(part.id)}
                     onClick={() => setSelectedPartId(on ? undefined : part.id)}
                     className={cn(
@@ -270,7 +269,6 @@ export default function MicroscopeExplorerTool() {
                 <li key={part.id}>
                   <button
                     type="button"
-                    onMouseEnter={() => setSelectedPartId(part.id)}
                     onFocus={() => setSelectedPartId(part.id)}
                     onClick={() => setSelectedPartId(on ? undefined : part.id)}
                     className={cn(
@@ -315,7 +313,7 @@ export default function MicroscopeExplorerTool() {
               </>
             ) : (
               <p className="text-[12.5px] leading-[1.65] text-ink-faint">
-                Select a part in the drawing or the list to read what it does. Tabbing through the
+                Click a part in the drawing or the list to read what it does. Tabbing through the
                 drawing walks the optical train from the source to the detector.
               </p>
             )}
@@ -418,7 +416,6 @@ export default function MicroscopeExplorerTool() {
         formula="d = k·λ ÷ NA, with k = 0.5 (Abbe), 0.61 (Rayleigh) or 0.47 (Sparrow);  axial = 2nλ ÷ NA²;  NA = n·sin θ"
         model={CRITERIA.find((entry) => entry.id === criterion)?.name}
         citations={microscopeExplorerMeta.citations}
-        computeLocation={microscopeExplorerMeta.computeLocation}
       />
 
       <div className="mt-3 space-y-2">

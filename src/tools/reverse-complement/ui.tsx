@@ -51,7 +51,6 @@ export default function ReverseComplementTool() {
         formula={FORMULA[mode]}
         model={asRna ? 'RNA output (input contains U)' : undefined}
         citations={reverseComplementMeta.citations}
-        computeLocation={reverseComplementMeta.computeLocation}
       />
     </div>
   );

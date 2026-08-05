@@ -440,7 +440,6 @@ export default function Od600Tool() {
             : 'Custom calibration'
         }
         citations={od600Meta.citations}
-        computeLocation={od600Meta.computeLocation}
       />
 
       <p className="mt-3 text-[12px] leading-[1.6] text-ink-faint">

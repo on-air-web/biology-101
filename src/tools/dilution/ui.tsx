@@ -219,11 +219,7 @@ export default function DilutionTool() {
         placeholder={error ?? 'Fill in the fields above to calculate.'}
       />
 
-      <Ladder
-        formula={output.formula}
-        citations={dilutionMeta.citations}
-        computeLocation={dilutionMeta.computeLocation}
-      />
+      <Ladder formula={output.formula} citations={dilutionMeta.citations} />
     </div>
   );
 }

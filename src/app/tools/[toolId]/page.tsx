@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { Breadcrumbs } from '@/components/shell/breadcrumbs';
-import { ComputeBadge, StatusBadge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/ui/badge';
 import { ToolBody } from '@/components/tools/tool-body';
 import { ExternalPanel } from '@/components/tools/external-panel';
 import { FaqJsonLd, ToolJsonLd } from '@/components/seo/json-ld';
@@ -71,7 +71,6 @@ export default async function ToolPage({ params }: PageProps) {
         <h1 className="text-display">{tool.name}</h1>
         <p className="mt-3 text-lg text-ink-muted">{tool.summary}</p>
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          <ComputeBadge location={tool.computeLocation} />
           <StatusBadge status={tool.status} />
           <FavouriteButton toolId={tool.id} />
         </div>

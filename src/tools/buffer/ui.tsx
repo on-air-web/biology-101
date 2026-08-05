@@ -243,7 +243,6 @@ export default function BufferTool() {
         formula="pH = pKa(T) + log₁₀([base]/[acid]);  pKa(T) = pKa₂₅ + (dpKa/dT)(T − 25)"
         model="Henderson–Hasselbalch, temperature-corrected pKa"
         citations={bufferMeta.citations}
-        computeLocation={bufferMeta.computeLocation}
       />
 
       <p className="mt-3 text-[12px] text-ink-faint">

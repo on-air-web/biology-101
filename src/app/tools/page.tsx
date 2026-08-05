@@ -17,7 +17,7 @@ export default function CatalogPage() {
       <CatalogJsonLd tools={getLiveTools()} />
       <h1 className="text-display">All tools</h1>
       <p className="mt-3 max-w-xl text-lg text-ink-muted">
-        Everything in one place. Each tool shows the formula it uses and runs in your browser.
+        Everything in one place. Each tool shows the formula it evaluated and cites its source.
       </p>
       <div className="mt-8">
         <CatalogBrowser />

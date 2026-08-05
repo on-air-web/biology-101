@@ -18,7 +18,7 @@ export const microscopeExplorerMeta: ToolMeta = {
   description:
     'An interactive cutaway of five microscopes — brightfield with Köhler illumination, widefield ' +
     'epifluorescence, laser scanning confocal, phase contrast and DIC. Drag to rotate, pinch to ' +
-    'zoom, and select any part to read what it does and what goes wrong when it is wrong. The ray ' +
+    'zoom, and click any part to read what it does and what goes wrong when it is wrong. The ray ' +
     'paths are drawn through the same geometry as the hardware, the conjugate planes are grouped, ' +
     'and the resolution is computed from the objective actually fitted.',
   keywords: [

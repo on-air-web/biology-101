@@ -93,7 +93,7 @@ export default async function TaskPage({ params }: PageProps) {
           <h2 className="text-[15px] font-semibold tracking-[-0.01em]">If you script</h2>
           <p className="mt-1.5 text-[12.5px] text-ink-faint">
             Command-line and library options. No page here — they need an environment rather than a
-            browser.
+            web page.
           </p>
           <ul className="mt-3 divide-y divide-line border-y border-line">
             {pipelines.map((tool) => (

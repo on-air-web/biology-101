@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   title: 'Biology 101 — your one stop shop for biology',
   description:
     'Everything you need, from a homework problem set to a research project. Calculators that ' +
-    'run in your browser, plus a curated directory of the external platforms worth using.',
+    'that show their working, plus a curated directory of the external platforms worth using.',
   alternates: { canonical: absoluteUrl(routes.home()) },
 };
 
@@ -53,8 +53,7 @@ export default function HomePage() {
           </p>
           <p className="mt-2 max-w-[52ch] text-[14.5px] text-ink-muted">
             Everything you need, from a homework problem set to a research project. Most of it runs
-            right here in your browser — and for the rest, we point you to the best tool for the
-            job.
+            right here — and for the rest, we point you to the best tool for the job.
           </p>
           <div className="mt-5 flex flex-wrap gap-2.5">
             <Link

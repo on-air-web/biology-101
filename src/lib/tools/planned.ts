@@ -46,7 +46,7 @@ export const PLANNED_TOOLS: readonly ToolMeta[] = [
     id: 'fasta-viewer',
     name: 'FASTA viewer',
     category: 'bioinformatics',
-    summary: 'Inspect, validate and navigate FASTA files in the browser.',
+    summary: 'Inspect, validate and navigate FASTA files without leaving the page.',
     description: 'Parse multi-record FASTA, flag malformed entries and browse sequences.',
     keywords: ['fasta', 'sequence viewer', 'multi fasta', 'validate', 'parse'],
   }),

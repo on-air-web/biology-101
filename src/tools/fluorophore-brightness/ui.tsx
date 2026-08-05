@@ -239,7 +239,6 @@ export default function FluorophoreBrightnessTool() {
       <Ladder
         formula="ε × Φ ÷ 1000;  in this setup = ε × Φ × EX(λ) × ∫EM(λ)T(λ)dλ ÷ ∫EM(λ)dλ"
         citations={fluorophoreBrightnessMeta.citations}
-        computeLocation={fluorophoreBrightnessMeta.computeLocation}
       />
     </div>
   );

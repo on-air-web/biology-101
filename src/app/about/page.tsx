@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   title: 'About',
   description:
     'Why Biology 101 exists, how its calculations are verified, and why nothing you enter ' +
-    'leaves your browser.',
+    'is ever uploaded.',
   alternates: { canonical: absoluteUrl(routes.about()) },
 };
 
@@ -34,7 +34,7 @@ export default function AboutPage() {
         </p>
       </div>
 
-      <h2 className="mt-12 text-xl">Nothing you enter leaves your browser</h2>
+      <h2 className="mt-12 text-xl">Nothing you enter is uploaded</h2>
       <div className="mt-3 space-y-4 text-ink-muted">
         <p>
           Every calculation runs locally, on your device. Sequences, constructs and concentrations

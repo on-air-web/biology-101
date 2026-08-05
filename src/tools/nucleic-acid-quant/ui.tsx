@@ -209,7 +209,6 @@ export default function NucleicAcidQuantTool() {
         formula="c = A₂₆₀ ÷ path × factor × dilution"
         model={`${kind.name}, ${kind.factor} µg/mL per A260`}
         citations={nucleicAcidQuantMeta.citations}
-        computeLocation={nucleicAcidQuantMeta.computeLocation}
       />
 
       <p className="mt-3 text-[12px] leading-[1.6] text-ink-faint">

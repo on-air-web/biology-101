@@ -320,7 +320,6 @@ export default function PeptideTool() {
         formula="M = Σ residues + H₂O;  ε₂₈₀ = 5500·nW + 1490·nY + 125·nSS;  pI where Σq(pH) = 0"
         model={`${pkaSet.name} pKa set, cysteines ${cysteineState === 'cystine' ? 'in disulfides' : 'reduced'}`}
         citations={proteinParametersMeta.citations}
-        computeLocation={proteinParametersMeta.computeLocation}
       />
 
       <p className="mt-3 text-[12px] text-ink-faint">

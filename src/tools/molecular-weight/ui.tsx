@@ -115,7 +115,6 @@ export default function MolecularWeightTool() {
         formula="M = Σ (atomic weight × atom count)"
         model="IUPAC 2021 abridged standard atomic weights"
         citations={molecularWeightMeta.citations}
-        computeLocation={molecularWeightMeta.computeLocation}
       />
 
       <p className="mt-3 text-sm text-ink-muted">

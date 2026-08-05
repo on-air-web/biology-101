@@ -142,7 +142,6 @@ export default function AgaroseGelTool() {
       <Ladder
         formula="mass = percentage (w/v) × volume;  1% w/v = 10 g/L"
         citations={agaroseGelMeta.citations}
-        computeLocation={agaroseGelMeta.computeLocation}
       />
 
       <p className="mt-3 text-[12px] leading-[1.6] text-ink-faint">

@@ -173,7 +173,6 @@ export default function ContingencyTool() {
         formula="χ² = Σ (|O − E| − c)² ÷ E, c = ½ on 2×2;  Fisher sums hypergeometric tables at least as extreme"
         model={chi?.yatesApplied ? 'Chi-square with Yates’ correction' : 'Chi-square, uncorrected'}
         citations={contingencyMeta.citations}
-        computeLocation={contingencyMeta.computeLocation}
       />
 
       <p className="mt-3 text-[12px] text-ink-faint">

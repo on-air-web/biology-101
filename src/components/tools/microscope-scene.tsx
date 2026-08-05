@@ -26,7 +26,7 @@ import { cn } from '@/lib/utils';
 /**
  * The interactive instrument.
  *
- * Drag to rotate, pinch to zoom, hover or focus a part to read what it does.
+ * Drag to rotate, pinch to zoom, click a part to read what it does.
  * Parts and rays are projected by the same code, so the light path stays
  * attached to the glass at every angle — the argument for building this rather
  * than reaching for a mesh library.
@@ -67,8 +67,17 @@ const compressionFor = (showBody: boolean) =>
 /** Fraction of the frame the instrument should occupy at the default zoom. */
 const FIT_MARGIN = 0.86;
 
-/** Minimum vertical separation between two ray labels, in viewBox units. */
-const LABEL_GAP = 22;
+/** Minimum vertical separation between two labels, in viewBox units. */
+const LABEL_GAP = 20;
+
+/**
+ * How long after a drag ends before the labels come back, in milliseconds.
+ *
+ * Long enough to absorb a released-too-early drag and the pause between two
+ * pulls at the same angle; short enough that it reads as the drawing settling
+ * rather than as the labels having been lost.
+ */
+const LABEL_SETTLE_MS = 550;
 
 /**
  * The zoom that frames a whole instrument.
@@ -153,8 +162,14 @@ export interface MicroscopeSceneProps {
   onSelectPart: (id: string | undefined) => void;
   /** Draw the stand. Turning it off leaves the bare optical train. */
   showBody: boolean;
-  /** Name each ray band on the drawing itself rather than only in the legend. */
-  showRayLabels: boolean;
+  /**
+   * Label everything in the drawing: every ray band and every visible part.
+   *
+   * One switch rather than two, because "can I read this diagram" is a single
+   * question. What it does not control is the label on a selected part, which
+   * follows the selection and would be baffling to have silently suppressed.
+   */
+  showLabels: boolean;
 }
 
 export function MicroscopeScene({
@@ -163,7 +178,7 @@ export function MicroscopeScene({
   selectedPartId,
   onSelectPart,
   showBody,
-  showRayLabels,
+  showLabels,
 }: MicroscopeSceneProps) {
   const defaultView = useMemo<View>(
     () => ({ yaw: 0.5, pitch: 0.34, scale: fitScale(modality, showBody) }),
@@ -171,6 +186,38 @@ export function MicroscopeScene({
   );
   const [view, setView] = useState<View>(defaultView);
   const [dragging, setDragging] = useState(false);
+  /**
+   * Labels are hidden while the instrument is being turned, and come back a
+   * moment after it is let go.
+   *
+   * Two reasons for the delay rather than an immediate return. Labels
+   * reappearing the instant a drag ends flash on and off while someone adjusts
+   * the angle in short pulls, and a drag released a little early — which is
+   * most of them — would otherwise repaint the whole annotation set for the
+   * few hundred milliseconds before the next pull starts.
+   */
+  const [settling, setSettling] = useState(false);
+  const settleTimer = useRef<number | undefined>(undefined);
+
+  const holdLabels = useCallback(() => {
+    if (settleTimer.current !== undefined) window.clearTimeout(settleTimer.current);
+    setSettling(true);
+  }, []);
+
+  const releaseLabels = useCallback(() => {
+    if (settleTimer.current !== undefined) window.clearTimeout(settleTimer.current);
+    settleTimer.current = window.setTimeout(() => setSettling(false), LABEL_SETTLE_MS);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (settleTimer.current !== undefined) window.clearTimeout(settleTimer.current);
+    },
+    [],
+  );
+
+  const labelsVisible = showLabels && !settling;
+
   const svgRef = useRef<SVGSVGElement>(null);
   const dragFrom = useRef<{ x: number; y: number; yaw: number; pitch: number } | null>(null);
 
@@ -243,7 +290,15 @@ export function MicroscopeScene({
   };
 
   function startDrag(event: React.PointerEvent) {
-    (event.target as Element).setPointerCapture?.(event.pointerId);
+    // Capture keeps a drag alive when the pointer leaves the SVG, but throws
+    // for a pointer id the browser does not consider active. Letting that
+    // escape would abort the rest of the handler and leave the scene in a
+    // half-started drag.
+    try {
+      (event.target as Element).setPointerCapture?.(event.pointerId);
+    } catch {
+      // Not capturable; dragging still works while the pointer stays inside.
+    }
     pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
 
     if (pointers.current.size === 2) {
@@ -252,11 +307,13 @@ export function MicroscopeScene({
       dragFrom.current = null;
       pinchFrom.current = { distance: spread(), scale: view.scale };
       setDragging(false);
+      holdLabels();
       return;
     }
 
     dragFrom.current = { x: event.clientX, y: event.clientY, yaw: view.yaw, pitch: view.pitch };
     setDragging(true);
+    holdLabels();
   }
 
   function onDrag(event: React.PointerEvent) {
@@ -284,6 +341,7 @@ export function MicroscopeScene({
     if (pointers.current.size === 0) {
       dragFrom.current = null;
       setDragging(false);
+      releaseLabels();
     }
   }
 
@@ -327,47 +385,101 @@ export function MicroscopeScene({
    * and labels are then pushed apart vertically so two bands leaving the same
    * side of the column do not overprint each other.
    */
-  const rayLabels = useMemo(() => {
-    if (!showRayLabels) return [];
+  /**
+   * Every label the drawing carries: one per ray band, one per visible part.
+   *
+   * Placed in two columns, left and right of the instrument, because a single
+   * column of twenty labels down one side is unreadable and a label laid over
+   * the optics is worse. Which side a label goes on follows the side its
+   * anchor is already on, so leader lines do not cross the column.
+   */
+  const labels = useMemo(() => {
+    if (!labelsVisible) return [];
 
-    const anchors = modality.bands
-      .filter((band) => visibleBands.includes(band.band))
-      .map((band) => {
-        const ray = modality.rays.find((candidate) => candidate.band === band.band);
-        if (!ray) return undefined;
+    type Anchor = {
+      key: string;
+      text: string;
+      colour: string;
+      x: number;
+      y: number;
+      faint: boolean;
+    };
+    const anchors: Anchor[] = [];
 
-        let best = project(squash(ray.points[0]!), view);
-        for (const worldPoint of ray.points) {
-          const projected = project(squash(worldPoint), view);
-          if (Math.abs(projected.x) > Math.abs(best.x)) best = projected;
-        }
-        return { band, x: best.x, y: best.y };
-      })
-      .filter((entry) => entry !== undefined);
+    for (const band of modality.bands) {
+      if (!visibleBands.includes(band.band)) continue;
+      const ray = modality.rays.find((candidate) => candidate.band === band.band);
+      if (!ray) continue;
 
-    // Keep them legible: sort down the frame and enforce a gap.
-    const placed = [...anchors].sort((a, b) => a.y - b.y);
-    for (let i = 1; i < placed.length; i += 1) {
-      const previous = placed[i - 1]!;
-      const current = placed[i]!;
-      if (current.y - previous.y < LABEL_GAP) current.y = previous.y + LABEL_GAP;
+      // The point furthest from the optical axis: that is where there is room.
+      let best = project(squash(ray.points[0]!), view);
+      for (const worldPoint of ray.points) {
+        const projected = project(squash(worldPoint), view);
+        if (Math.abs(projected.x) > Math.abs(best.x)) best = projected;
+      }
+      anchors.push({
+        key: `band-${band.band}`,
+        text: band.label,
+        colour: BAND_STYLE[band.band].stroke,
+        x: best.x,
+        y: best.y,
+        faint: false,
+      });
     }
 
-    // Set the text outside the instrument rather than beside the ray. The
-    // illumination rays run close to the axis all the way up the column, so a
-    // label placed a few pixels from one lands squarely on the condenser. The
-    // clearance follows the drawn half-width, so it holds as the scene is
-    // zoomed, and a leader line keeps the text tied to its own ray.
+    for (const entry of rendered.parts) {
+      anchors.push({
+        key: `part-${entry.part.id}`,
+        text: entry.part.name,
+        colour: entry.part.structural ? 'var(--color-ink-faint)' : 'var(--color-ink-muted)',
+        x: entry.anchor.x,
+        y: entry.anchor.y,
+        // The stand is written fainter than the optics, as it is drawn fainter.
+        faint: entry.part.structural === true,
+      });
+    }
+
     const clearance = Math.min(
       framing(modality, showBody).halfWidth * view.scale + 14,
-      VIEWBOX.width / 2 - 90,
+      VIEWBOX.width / 2 - 96,
     );
 
-    return placed.map((entry) => {
-      const side: 1 | -1 = entry.x >= 0 ? 1 : -1;
-      return { ...entry, side, textX: side * Math.max(Math.abs(entry.x) + 14, clearance) };
+    /**
+     * Split into two columns, balancing whatever sits on the axis.
+     *
+     * Nearly every part of a microscope is centred on the optical axis, so
+     * sorting purely by the sign of x drops the whole instrument into one
+     * column: twenty labels stacked down the right, each pushed further from
+     * the part it names than the last. Anything within ON_AXIS of the centre is
+     * therefore dealt out left and right alternately, by height, which halves
+     * the stack and keeps each label near its own anchor.
+     */
+    const ON_AXIS = 6;
+    const offAxis = anchors.filter((entry) => Math.abs(entry.x) > ON_AXIS);
+    const onAxis = [...anchors]
+      .filter((entry) => Math.abs(entry.x) <= ON_AXIS)
+      .sort((a, b) => a.y - b.y);
+
+    const columns: Anchor[][] = [
+      [...offAxis.filter((entry) => entry.x < 0), ...onAxis.filter((_, i) => i % 2 === 0)],
+      [...offAxis.filter((entry) => entry.x >= 0), ...onAxis.filter((_, i) => i % 2 === 1)],
+    ];
+
+    return columns.flatMap((column, index) => {
+      const side: 1 | -1 = index === 0 ? -1 : 1;
+      const placed = [...column].sort((a, b) => a.y - b.y);
+      for (let i = 1; i < placed.length; i += 1) {
+        const previous = placed[i - 1]!;
+        const current = placed[i]!;
+        if (current.y - previous.y < LABEL_GAP) current.y = previous.y + LABEL_GAP;
+      }
+      return placed.map((entry) => ({
+        ...entry,
+        side,
+        textX: side * Math.max(Math.abs(entry.x) + 14, clearance),
+      }));
     });
-  }, [modality, view, visibleBands, squash, showRayLabels, showBody]);
+  }, [modality, view, visibleBands, squash, labelsVisible, showBody, rendered]);
 
   // Rays and parts are depth-sorted together, so a ray genuinely passes behind
   // the far side of a lens and in front of the near side.
@@ -432,7 +544,7 @@ export function MicroscopeScene({
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
         role="application"
-        aria-label={`Interactive cutaway of a ${modality.name}. Drag to rotate, pinch to zoom. The parts are listed below the drawing and can be reached with the keyboard.`}
+        aria-label={`Interactive cutaway of a ${modality.name}. Drag to rotate, pinch to zoom, click a part for its detail. The parts are listed below the drawing and can be reached with the keyboard.`}
       >
         {/* The optical axis, so the instrument reads as a column even when
             every part is edge-on. */}
@@ -472,30 +584,27 @@ export function MicroscopeScene({
             ),
           )}
 
-          {rayLabels.map((entry) => (
-            <g
-              key={`label-${entry.band.band}`}
-              pointerEvents="none"
-              opacity={selectedPartId ? 0.35 : 1}
-            >
+          {labels.map((entry) => (
+            <g key={entry.key} pointerEvents="none" opacity={selectedPartId ? 0.3 : 1}>
               <line
                 x1={entry.x}
                 y1={entry.y}
                 x2={entry.textX - entry.side * 4}
                 y2={entry.y}
-                stroke={BAND_STYLE[entry.band.band].stroke}
+                stroke={entry.colour}
                 strokeWidth={0.8}
-                strokeOpacity={0.5}
+                strokeOpacity={entry.faint ? 0.28 : 0.5}
               />
               <text
                 x={entry.textX}
                 y={entry.y}
                 textAnchor={entry.side > 0 ? 'start' : 'end'}
                 dominantBaseline="middle"
-                fontSize={13}
-                fill={BAND_STYLE[entry.band.band].stroke}
+                fontSize={12}
+                fill={entry.colour}
+                fillOpacity={entry.faint ? 0.75 : 1}
               >
-                {entry.band.label}
+                {entry.text}
               </text>
             </g>
           ))}
@@ -620,7 +729,9 @@ function PartShape({
       aria-pressed={selected}
       aria-label={`${part.name}. ${part.role}`}
       className="cursor-pointer outline-none focus-visible:stroke-[var(--color-gfp-300)] focus-visible:[stroke-width:2.5]"
-      onPointerEnter={() => onSelect(part.id)}
+      // Click rather than hover. Hover made the panel flicker through half the
+      // instrument on the way to the part you wanted, and it gives a touch
+      // user nothing at all.
       onFocus={() => onSelect(part.id)}
       onClick={(event) => {
         event.stopPropagation();

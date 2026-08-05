@@ -1174,7 +1174,7 @@ export const TOOL_EXPLAINERS: Record<string, ToolExplainer> = {
       {
         question: 'Can I really rotate it, or is it a fixed drawing?',
         answer:
-          'It is genuinely three-dimensional: the parts are surfaces of revolution placed in 3D and projected, and the ray paths are polylines in the same coordinates. That is why the light path stays attached to the glass at every angle rather than being a second drawing kept in step by hand.',
+          'It is genuinely three-dimensional: the parts are surfaces of revolution placed in 3D and projected, and the ray paths are polylines in the same coordinates. That is why the light path stays attached to the glass at every angle rather than being a second drawing kept in step by hand. Drag to turn it, pinch to zoom, and use full screen when the detail matters — a plain scroll is left alone so the page still scrolls past.',
       },
       {
         question: 'Why does epifluorescence use the objective as its condenser?',

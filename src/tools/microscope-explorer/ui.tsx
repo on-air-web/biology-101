@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { CircleAlert, Eye, EyeOff, Info } from 'lucide-react';
+import { CircleAlert, Eye, EyeOff, Info, Tag } from 'lucide-react';
 import { Ladder } from '@/components/brand/ladder';
 import { MicroscopeScene } from '@/components/tools/microscope-scene';
 import { NumberInput } from '@/components/ui/quantity-input';
@@ -34,6 +34,7 @@ export default function MicroscopeExplorerTool() {
   const [selectedPartId, setSelectedPartId] = useState<string | undefined>();
   const [hiddenBands, setHiddenBands] = useState<RayBand[]>([]);
   const [showBody, setShowBody] = useState(true);
+  const [showRayLabels, setShowRayLabels] = useState(true);
   const [na, setNa] = useState('');
   const [wavelength, setWavelength] = useState('');
   const [immersionId, setImmersionId] = useState<string>('');
@@ -126,28 +127,51 @@ export default function MicroscopeExplorerTool() {
             selectedPartId={selectedPartId}
             onSelectPart={setSelectedPartId}
             showBody={showBody}
+            showRayLabels={showRayLabels}
           />
 
-          <label
-            className={cn(
-              'mt-3 flex h-8 w-fit cursor-pointer items-center gap-2 rounded-lab border px-2.5 text-[12.5px]',
-              'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand',
-              showBody ? 'border-line-strong text-ink' : 'border-line text-ink-faint',
-            )}
-          >
-            <input
-              type="checkbox"
-              checked={showBody}
-              onChange={() => setShowBody((current) => !current)}
-              className="sr-only"
-            />
-            {showBody ? (
-              <Eye className="size-3.5 text-ink-muted" aria-hidden />
-            ) : (
-              <EyeOff className="size-3.5" aria-hidden />
-            )}
-            Stand and body
-          </label>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            <label
+              className={cn(
+                'flex h-8 cursor-pointer items-center gap-2 rounded-lab border px-2.5 text-[12.5px]',
+                'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand',
+                showBody ? 'border-line-strong text-ink' : 'border-line text-ink-faint',
+              )}
+            >
+              <input
+                type="checkbox"
+                checked={showBody}
+                onChange={() => setShowBody((current) => !current)}
+                className="sr-only"
+              />
+              {showBody ? (
+                <Eye className="size-3.5 text-ink-muted" aria-hidden />
+              ) : (
+                <EyeOff className="size-3.5" aria-hidden />
+              )}
+              Stand and body
+            </label>
+
+            <label
+              className={cn(
+                'flex h-8 cursor-pointer items-center gap-2 rounded-lab border px-2.5 text-[12.5px]',
+                'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand',
+                showRayLabels ? 'border-line-strong text-ink' : 'border-line text-ink-faint',
+              )}
+            >
+              <input
+                type="checkbox"
+                checked={showRayLabels}
+                onChange={() => setShowRayLabels((current) => !current)}
+                className="sr-only"
+              />
+              <Tag
+                className={cn('size-3.5', showRayLabels ? 'text-ink-muted' : 'text-ink-faint')}
+                aria-hidden
+              />
+              Labels on the diagram
+            </label>
+          </div>
 
           <fieldset className="mt-3">
             <legend className="lbl">Light paths</legend>

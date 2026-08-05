@@ -17,7 +17,7 @@ export const microscopeExplorerMeta: ToolMeta = {
   summary: 'Turn a microscope in 3D, follow the light path, and see what each part is for.',
   description:
     'An interactive cutaway of five microscopes — brightfield with Köhler illumination, widefield ' +
-    'epifluorescence, laser scanning confocal, phase contrast and DIC. Drag to rotate, scroll to ' +
+    'epifluorescence, laser scanning confocal, phase contrast and DIC. Drag to rotate, pinch to ' +
     'zoom, and select any part to read what it does and what goes wrong when it is wrong. The ray ' +
     'paths are drawn through the same geometry as the hardware, the conjugate planes are grouped, ' +
     'and the resolution is computed from the objective actually fitted.',

@@ -90,6 +90,19 @@ export function explore(input: ExplorerInput): ExplorerResult {
  */
 export function partsInLightOrder(modality: Modality): Part[] {
   const optical = modality.parts.filter((part) => !part.structural);
+
+  // Where the path folds back on itself the modality says so itself; no
+  // arrangement of coordinates can express "met on the way down and again on
+  // the way up". Anything the list forgets is appended rather than dropped.
+  if (modality.lightOrder) {
+    const byId = new Map(optical.map((part) => [part.id, part]));
+    const declared = modality.lightOrder
+      .map((id) => byId.get(id))
+      .filter((part) => part !== undefined);
+    const named = new Set(declared.map((part) => part.id));
+    return [...declared, ...optical.filter((part) => !named.has(part.id))];
+  }
+
   const offAxis = optical.filter((part) => Math.abs(part.at[0]) > 1);
   const onAxis = optical.filter((part) => Math.abs(part.at[0]) <= 1);
 

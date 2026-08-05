@@ -165,13 +165,17 @@ describe('standParts', () => {
     }
   });
 
-  it('gives the transmitted stands a substage and the epi stands a cube turret', () => {
+  it('gives each stand the hardware its technique needs', () => {
     const ids = (id: string) => standParts(getModality(id)!).map((p) => p.id);
+    // A transmitted-light instrument has a substage to carry the condenser.
     expect(ids('brightfield')).toContain('substage');
     expect(ids('phase-contrast')).toContain('substage');
+    // An epi stand has none, and gains a turret of filter cubes instead.
     expect(ids('epifluorescence')).toContain('cube-turret');
     expect(ids('epifluorescence')).not.toContain('substage');
-    expect(ids('confocal')).toContain('cube-turret');
+    // A confocal replaces the cube turret with the sealed scan head.
+    expect(ids('confocal')).toContain('scan-head');
+    expect(ids('confocal')).not.toContain('cube-turret');
   });
 
   it('puts the base below the lamp and the limb behind the column', () => {
@@ -182,6 +186,47 @@ describe('standParts', () => {
     expect(base.at[1]).toBeLessThan(lamp.at[1]);
     // Behind, in +Z, so rotating the scene swings it round the optics.
     expect(limb.at[2]).toBeGreaterThan(20);
+  });
+});
+
+describe('the declared light order, where the path folds', () => {
+  it('walks a confocal from the laser to the detector, not sideways along the arm', () => {
+    // The PMT sits at the far end of the same arm the laser enters by, so
+    // sorting the arm by x puts the detector first. This is the case the
+    // explicit order exists for.
+    const ids = partsInLightOrder(getModality('confocal')!).map((p) => p.id);
+    expect(ids[0]).toBe('laser');
+    expect(ids[ids.length - 1]).toBe('pmt');
+    expect(ids.indexOf('dichroic')).toBeLessThan(ids.indexOf('scan-mirrors'));
+    // Descanning: the mirrors are met before the specimen and the pinhole after.
+    expect(ids.indexOf('scan-mirrors')).toBeLessThan(ids.indexOf('specimen'));
+    expect(ids.indexOf('specimen')).toBeLessThan(ids.indexOf('pinhole'));
+    expect(ids.indexOf('pinhole')).toBeLessThan(ids.indexOf('pmt'));
+  });
+
+  it('meets the epi dichroic before the objective, on the way down', () => {
+    const ids = partsInLightOrder(getModality('epifluorescence')!).map((p) => p.id);
+    expect(ids.indexOf('excitation-filter')).toBeLessThan(ids.indexOf('dichroic'));
+    expect(ids.indexOf('dichroic')).toBeLessThan(ids.indexOf('objective'));
+    expect(ids.indexOf('objective')).toBeLessThan(ids.indexOf('specimen'));
+    expect(ids.indexOf('specimen')).toBeLessThan(ids.indexOf('emission-filter'));
+  });
+
+  it('never drops a part a declared order forgot to mention', () => {
+    for (const modality of MODALITIES) {
+      if (!modality.lightOrder) continue;
+      const optical = modality.parts.filter((part) => !part.structural);
+      expect(partsInLightOrder(modality)).toHaveLength(optical.length);
+    }
+  });
+
+  it('names only parts that exist', () => {
+    for (const modality of MODALITIES) {
+      const ids = new Set(modality.parts.map((part) => part.id));
+      for (const id of modality.lightOrder ?? []) {
+        expect(ids.has(id), `${modality.id} orders a missing part: ${id}`).toBe(true);
+      }
+    }
   });
 });
 

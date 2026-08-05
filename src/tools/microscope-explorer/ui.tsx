@@ -223,7 +223,7 @@ export default function MicroscopeExplorerTool() {
 
       <div className="mt-5 grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
         <div>
-          <p className="lbl">Parts, up the column</p>
+          <p className="lbl">Parts, in the order light meets them</p>
           <ol className="mt-1.5 max-h-[280px] space-y-0.5 overflow-y-auto pr-1">
             {ordered.map((part) => {
               const on = part.id === selectedPartId;
@@ -255,9 +255,9 @@ export default function MicroscopeExplorerTool() {
           </ol>
           {modality.parts.some((part) => part.kind === 'dichroic') ? (
             <p className="mt-2 text-[11.5px] leading-[1.6] text-ink-faint">
-              Listed by position, not strictly by order of travel: in an epi instrument the dichroic
-              and the objective are each passed twice — once by the excitation going down, once by
-              the emission coming back up.
+              The dichroic and the objective are each passed twice — once by the excitation on its
+              way down, once by the emission coming back up — and are listed where the light first
+              reaches them.
             </p>
           ) : null}
 

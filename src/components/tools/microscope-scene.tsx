@@ -80,6 +80,13 @@ const LABEL_GAP = 20;
 const LABEL_SETTLE_MS = 550;
 
 /**
+ * How far the pointer must travel before a press counts as a drag, in CSS
+ * pixels. Below this it is a click, the scene does not turn, and the labels
+ * stay where they are.
+ */
+const DRAG_THRESHOLD_PX = 4;
+
+/**
  * The zoom that frames a whole instrument.
  *
  * Computed rather than fixed because the epifluorescence and confocal stands
@@ -313,7 +320,9 @@ export function MicroscopeScene({
 
     dragFrom.current = { x: event.clientX, y: event.clientY, yaw: view.yaw, pitch: view.pitch };
     setDragging(true);
-    holdLabels();
+    // Deliberately no holdLabels() here. Pressing the mouse down is not yet a
+    // drag, and hiding on pointerdown made every ordinary click on a part
+    // blink the whole annotation set off and back on.
   }
 
   function onDrag(event: React.PointerEvent) {
@@ -328,6 +337,14 @@ export function MicroscopeScene({
 
     const from = dragFrom.current;
     if (!from) return;
+
+    // A press only becomes a drag once the pointer has actually travelled.
+    // A distance threshold rather than a timer: it never fires on a click, and
+    // it responds the instant a real drag starts instead of making the user
+    // wait out a delay before the labels clear.
+    if (Math.hypot(event.clientX - from.x, event.clientY - from.y) < DRAG_THRESHOLD_PX) return;
+
+    holdLabels();
     setView((current) => ({
       ...current,
       yaw: from.yaw + (event.clientX - from.x) * 0.008,
@@ -341,7 +358,9 @@ export function MicroscopeScene({
     if (pointers.current.size === 0) {
       dragFrom.current = null;
       setDragging(false);
-      releaseLabels();
+      // Only schedule the return if they were actually taken away; a plain
+      // click never hid them and must not start a timer either.
+      if (settling) releaseLabels();
     }
   }
 

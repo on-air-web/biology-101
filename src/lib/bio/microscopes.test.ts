@@ -161,6 +161,84 @@ describe('the optical trains are physically ordered', () => {
     expect(o.points[o.points.length - 1]![0]).toBeCloseTo(e.points[e.points.length - 1]![0], 6);
   });
 
+  it('faces every turning mirror the way its ray actually turns', () => {
+    /**
+     * The reflection law, applied to the drawing itself.
+     *
+     * A 45° mirror has two possible orientations and they send the beam to
+     * opposite places. This walks each ray to the vertex that sits on a mirror,
+     * takes the incoming and outgoing directions, and checks that reflecting
+     * the first about the mirror's normal gives the second. It caught the
+     * epifluorescence dichroic facing the wrong way — drawn sending excitation
+     * up to the camera while the ray went down into the objective.
+     */
+    const reflect = (d: readonly number[], n: readonly number[]) => {
+      const dot = d[0]! * n[0]! + d[1]! * n[1]! + d[2]! * n[2]!;
+      return [d[0]! - 2 * dot * n[0]!, d[1]! - 2 * dot * n[1]!, d[2]! - 2 * dot * n[2]!];
+    };
+    const unit = (v: readonly number[]) => {
+      const l = Math.hypot(v[0]!, v[1]!, v[2]!);
+      return l === 0 ? [0, 0, 0] : [v[0]! / l, v[1]! / l, v[2]! / l];
+    };
+
+    let checked = 0;
+    for (const modality of MODALITIES) {
+      const mirrors = modality.parts.filter(
+        (part) => (part.kind === 'mirror' || part.kind === 'dichroic') && part.axis,
+      );
+      for (const mirror of mirrors) {
+        for (const ray of modality.rays) {
+          // A scanning mirror is at more than one angle; a ray drawn for a
+          // different angle cannot match the one orientation drawn.
+          if (ray.mirrorMoved) continue;
+          for (let i = 1; i < ray.points.length - 1; i += 1) {
+            const at = ray.points[i]!;
+            // Anywhere on the mirror face, not just its centre: a beam is
+            // entitled to strike a mirror off-axis, and only checking the
+            // centre quietly skipped every epifluorescence ray.
+            const onMirror =
+              Math.hypot(at[0] - mirror.at[0], at[1] - mirror.at[1]) <= mirror.radius;
+            if (!onMirror) continue;
+
+            const incoming = unit([
+              at[0] - ray.points[i - 1]![0],
+              at[1] - ray.points[i - 1]![1],
+              at[2] - ray.points[i - 1]![2],
+            ]);
+            const outgoing = unit([
+              ray.points[i + 1]![0] - at[0],
+              ray.points[i + 1]![1] - at[1],
+              ray.points[i + 1]![2] - at[2],
+            ]);
+            // A dichroic reflects one band and transmits the other, so only
+            // the reflections can be checked against its normal. The threshold
+            // is 1.0, which is a 60° change of direction: a fold is 90° and
+            // gives √2, while a transmitted ray crossing a tilted plate bends
+            // by a few degrees at most. A looser threshold read the confocal's
+            // transmitted out-of-focus path as a reflection.
+            const turns = Math.hypot(
+              outgoing[0]! - incoming[0]!,
+              outgoing[1]! - incoming[1]!,
+              outgoing[2]! - incoming[2]!,
+            );
+            if (turns < 1) continue;
+
+            const expected = reflect(incoming, unit(mirror.axis!));
+            for (let axis = 0; axis < 3; axis += 1) {
+              expect(
+                outgoing[axis]!,
+                `${modality.id}/${ray.id} at ${mirror.id}: axis ${axis}`,
+              ).toBeCloseTo(expected[axis]!, 1);
+            }
+            checked += 1;
+          }
+        }
+      }
+    }
+    // Guard against the check silently matching nothing.
+    expect(checked).toBeGreaterThan(2);
+  });
+
   it('tilts both dichroics to 45 degrees', () => {
     for (const id of ['epifluorescence', 'confocal']) {
       const dichroic = getModality(id)!.parts.find((p) => p.kind === 'dichroic')!;

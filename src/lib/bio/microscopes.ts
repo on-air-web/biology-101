@@ -85,6 +85,17 @@ export interface Ray {
   id: string;
   band: RayBand;
   points: Vec3[];
+  /**
+   * Drawn with a scanning mirror at a different angle from the one the part is
+   * drawn at.
+   *
+   * A galvanometer mirror is, by definition, at more than one orientation, so a
+   * ray showing where the spot goes next cannot obey the reflection law against
+   * the single orientation the mirror is drawn in. Flagged rather than quietly
+   * excused, so the check that every other turn is geometrically honest still
+   * has teeth.
+   */
+  mirrorMoved?: boolean;
 }
 
 export interface Modality {
@@ -108,6 +119,16 @@ export interface Modality {
     /** Key for TECHNIQUE_GAINS. */
     gainKey: string;
   };
+  /**
+   * Part ids in the order the light meets them, where the geometry cannot say.
+   *
+   * Sorting up the column works for a transmitted-light instrument and fails
+   * for anything whose path folds: in a confocal the detector sits at the far
+   * end of the same arm the laser enters by, so sorting sideways puts the PMT
+   * first. Declared explicitly rather than guessed at with another heuristic.
+   * A part passed twice is listed at its first pass.
+   */
+  lightOrder?: string[];
   /** Anything the drawing cannot show. Printed under the scene. */
   caveats: string[];
 }
@@ -135,11 +156,20 @@ const Y = {
 } as const;
 
 /** The epi arm comes in from −X and turns up at the dichroic. */
-const X = { lampArm: -118, filterArm: -84, scanArm: -52 } as const;
+const X = { lampArm: -118, filterArm: -84, confocalArm: -56 } as const;
 
 const AXIS_Y: Vec3 = [0, 1, 0];
-/** A dichroic at 45° in the XY plane: normal halfway between +Y and −X. */
+/**
+ * Two 45° orientations, and they are not interchangeable.
+ *
+ * AXIS_45 turns a beam travelling up into one travelling along +X, which is
+ * what the epi dichroic does in reverse. AXIS_45_DOWN turns a beam travelling
+ * along +X into one travelling down the column, which is what the confocal
+ * scan mirror does. Using one where the other belongs draws a mirror that
+ * would send the light out of the instrument.
+ */
 const AXIS_45: Vec3 = [-Math.SQRT1_2, Math.SQRT1_2, 0];
+const AXIS_45_DOWN: Vec3 = [-Math.SQRT1_2, -Math.SQRT1_2, 0];
 const AXIS_X: Vec3 = [1, 0, 0];
 
 /* -------------------------------------------------------------------------
@@ -155,6 +185,10 @@ const lamp = (name: string, role: string): Part => ({
   at: [0, Y.lamp, 0],
   radius: 16,
   thickness: 18,
+  // The filament is the first aperture plane. That it is imaged at the
+  // condenser diaphragm and again at the objective back focal plane — and
+  // never at the specimen — is the whole of what Köhler illumination means.
+  conjugate: 'aperture',
   role,
   ifWrong:
     'An uneven or badly centred source gives an image bright in the middle and dim at the edges, which is then mistaken for real variation in the sample.',
@@ -290,6 +324,7 @@ const camera: Part = {
   at: [0, Y.detector, 0],
   radius: 22,
   thickness: 16,
+  conjugate: 'field',
   role: 'A scientific CMOS or CCD sensor at a field plane. Pixel size should sample the Airy disc at least twice over, which is the Nyquist condition for not throwing away the resolution the objective just bought.',
   ifWrong:
     'Pixels too large and the resolution is lost at the sensor; too small and the same photons are spread over more pixels, costing signal to noise for nothing.',
@@ -406,6 +441,27 @@ const head: Part = {
   role: 'The upper casting carrying the tube lens and splitting light between the eyepieces and the camera port. The infinity space below it is where filter cubes and prisms can be inserted without shifting focus.',
 };
 
+/** The scan head sits where an epi stand carries its cube turret. */
+const CONFOCAL_STAND: Part[] = [
+  base,
+  limb,
+  stage,
+  focusKnob,
+  nosepiece,
+  {
+    id: 'scan-head',
+    name: 'Scan head',
+    kind: 'body',
+    structural: true,
+    at: [-62, Y.dichroic, 0],
+    box: [86, 24, 26],
+    radius: 86,
+    thickness: 48,
+    role: 'The sealed box carrying the lasers, the dichroics, the galvanometer mirrors, the pinhole and the detectors. Everything in it is aligned at the factory, which is why a confocal is bought rather than assembled.',
+  },
+  head,
+];
+
 /** The stand for an upright transmitted-light instrument. */
 const TRANSMITTED_STAND: Part[] = [base, limb, substage, stage, focusKnob, nosepiece, head];
 
@@ -438,6 +494,53 @@ const EPI_STAND: Part[] = [
  * ---------------------------------------------------------------------- */
 
 const point = (x: number, y: number, z = 0): Vec3 => [x, y, z];
+
+/**
+ * Where a ray crosses a 45° fold mirror, so the drawn vertex sits on the glass.
+ *
+ * The mirror surface through (0, mirrorY) with a 45° normal is the line
+ * x + y = mirrorY. Solving the segment against it puts the bend exactly on the
+ * mirror instead of near it, which is what lets the reflection law be checked
+ * rather than eyeballed.
+ */
+function foldOn45(from: Vec3, towards: Vec3, mirrorY: number): Vec3 {
+  const dx = towards[0] - from[0];
+  const dy = towards[1] - from[1];
+  const denominator = dx + dy;
+  const t = denominator === 0 ? 0 : (mirrorY - from[0] - from[1]) / denominator;
+  return [from[0] + t * dx, from[1] + t * dy, 0];
+}
+
+/**
+ * The virtual point an epi illuminator aims at, before the fold.
+ *
+ * Widefield epi-illumination images the source at the objective BACK FOCAL
+ * PLANE, so the beam leaves the objective collimated and lights the whole
+ * field evenly. The beam is therefore already converging when it reaches the
+ * dichroic, and the fold simply moves where it converges. Reflecting the back
+ * focal plane through the mirror gives the point the arm must aim at — which is
+ * as far beyond the mirror along the arm as the back focal plane is below it.
+ */
+const EPI_VIRTUAL_FOCUS = point(Y.dichroic - Y.backFocalPlane, Y.dichroic);
+
+/**
+ * Where a ray goes after bouncing off a 45° mirror, travelling `runX` in x.
+ *
+ * Placing the vertex after a fold by hand looks right and is wrong by a few
+ * degrees, which is exactly the sort of error a diagram carries indefinitely
+ * because nobody can see it. Applying the reflection law here means the drawn
+ * bend and the drawn mirror can never disagree.
+ */
+function afterFold(from: Vec3, at: Vec3, normal: Vec3, runX: number): Vec3 {
+  const dx = at[0] - from[0];
+  const dy = at[1] - from[1];
+  const length = Math.hypot(dx, dy) || 1;
+  const d = [dx / length, dy / length] as const;
+  const dot = d[0] * normal[0] + d[1] * normal[1];
+  const r = [d[0] - 2 * dot * normal[0], d[1] - 2 * dot * normal[1]] as const;
+  const t = r[0] === 0 ? 0 : runX / r[0];
+  return [at[0] + r[0] * t, at[1] + r[1] * t, 0];
+}
 
 /**
  * An imaging ray from a point on the specimen up through the column.
@@ -483,6 +586,67 @@ function illuminationRay(id: string, h: number): Ray {
       point(-h * 1.5, Y.objective),
       point(0, Y.backFocalPlane),
       point(h * 0.8, Y.tubeLens),
+    ],
+  };
+}
+
+/**
+ * One epi excitation ray, from the lamp to the specimen.
+ *
+ * `h` is its height in the illumination arm. It folds at the dichroic, comes to
+ * a focus at the objective back focal plane, and leaves the objective parallel
+ * to the axis — evenly illuminating the field, which is the defining property
+ * of widefield epifluorescence and the thing a confocal gives up.
+ */
+function epiExcitationRay(id: string, h: number): Ray {
+  const from = point(X.lampArm, Y.dichroic + h);
+  const fold = foldOn45(from, EPI_VIRTUAL_FOCUS, Y.dichroic);
+  // Which side of the field this ray ends on: the focus at the back focal
+  // plane inverts it, as any focus does.
+  const width = h < 0 ? 13 : -13;
+  return {
+    id,
+    band: 'excitation',
+    points: [
+      from,
+      fold,
+      point(0, Y.backFocalPlane),
+      point(width, Y.objective),
+      point(width, Y.sample),
+    ],
+  };
+}
+
+/**
+ * One confocal emission ray, from the specimen out to the detector.
+ *
+ * `halfWidth` is how far off-axis it leaves the objective. The bend at the scan
+ * mirror is computed from the reflection law rather than placed, so the drawn
+ * fold and the drawn mirror always agree — the in-focus pair then converges on
+ * the pinhole, and the out-of-focus pair, which left the objective wider,
+ * arrives still spread and lands on the stop.
+ */
+function confocalEmissionRay(id: string, halfWidth: number, band: RayBand): Ray {
+  const leavesObjective = point(halfWidth, Y.objective);
+  const hitsMirror = point(halfWidth * 0.75, Y.dichroic);
+  const afterMirror = afterFold(leavesObjective, hitsMirror, AXIS_45_DOWN, X.confocalArm);
+  const inFocus = band === 'emission';
+
+  return {
+    id,
+    band,
+    points: [
+      point(0, Y.sample - (inFocus ? 0 : 26)),
+      leavesObjective,
+      hitsMirror,
+      afterMirror,
+      // The pinhole lens brings the in-focus pair together on the hole; the
+      // out-of-focus pair is still wide when it gets there.
+      point(X.confocalArm - 28, afterMirror[1] * 0.5 + Y.dichroic * 0.5),
+      inFocus
+        ? point(X.confocalArm - 54, Y.dichroic)
+        : point(X.confocalArm - 54, Y.dichroic + (halfWidth > 0 ? 11 : -11)),
+      ...(inFocus ? [point(X.confocalArm - 84, Y.dichroic)] : []),
     ],
   };
 }
@@ -549,7 +713,8 @@ const brightfield: Modality = {
     gainKey: 'widefield',
   },
   caveats: [
-    'The two sets of conjugate planes are the point of this diagram. Field planes — field diaphragm, specimen, intermediate image — are in focus together; aperture planes — lamp filament, condenser diaphragm, objective back focal plane — are in focus together and never with the first set.',
+    'The two sets of conjugate planes are the point of this diagram. Field planes — field diaphragm, specimen, intermediate image, camera — are in focus together; aperture planes — lamp filament, condenser diaphragm, objective back focal plane — are in focus together and never with the first set.',
+    'The illumination rays are drawn for a single point of the filament, which is why they all cross the axis at the two aperture planes. Every other point of the source does the same thing at a different height, and between them they fill the condenser aperture — that filling is what makes the illumination even.',
     'Ray heights and lens spacings are schematic. No focal lengths are claimed and nothing is traced through a prescription.',
   ],
 };
@@ -587,7 +752,10 @@ const epifluorescence: Modality = {
       name: 'Dichroic mirror',
       kind: 'dichroic',
       at: [0, Y.dichroic, 0],
-      axis: AXIS_45,
+      // AXIS_45_DOWN, not AXIS_45: this mirror has to turn the excitation
+      // arriving along +X downwards into the objective. Facing it the other way
+      // sends the excitation up to the camera, which is what it was doing.
+      axis: AXIS_45_DOWN,
       radius: 20,
       thickness: 2,
       role: 'Reflects the short excitation wavelengths down into the objective and transmits the longer emission up to the detector. At 45°, so its edge wavelength shifts a little from the normal-incidence specification.',
@@ -614,26 +782,11 @@ const epifluorescence: Modality = {
     ...EPI_STAND,
   ],
   rays: [
-    {
-      id: 'ex-a',
-      band: 'excitation',
-      points: [
-        point(X.lampArm, Y.dichroic + 6),
-        point(0, Y.dichroic + 6),
-        point(6, Y.objective),
-        point(0, Y.sample),
-      ],
-    },
-    {
-      id: 'ex-b',
-      band: 'excitation',
-      points: [
-        point(X.lampArm, Y.dichroic - 6),
-        point(0, Y.dichroic - 6),
-        point(-6, Y.objective),
-        point(0, Y.sample),
-      ],
-    },
+    // Focused at the back focal plane, collimated at the specimen: that is what
+    // makes the whole field light up evenly rather than one spot. Drawing these
+    // converging onto the specimen would have depicted a confocal.
+    epiExcitationRay('ex-a', 9),
+    epiExcitationRay('ex-b', -9),
     {
       id: 'em-a',
       band: 'emission',
@@ -692,12 +845,36 @@ const epifluorescence: Modality = {
     wavelength: 520,
     gainKey: 'epifluorescence',
   },
+  lightOrder: [
+    'lamp',
+    'excitation-filter',
+    'dichroic',
+    'objective',
+    'specimen',
+    'bfp',
+    'emission-filter',
+    'tube-lens',
+    'intermediate-image',
+    'camera',
+  ],
   caveats: [
     'Out-of-focus fluorescence is the defining limitation and is drawn as the pale third emission path. Nothing in a widefield epi-fluorescence instrument removes it; that is what the confocal pinhole is for.',
-    'The excitation cone is drawn narrow for legibility. In a real instrument it fills the back aperture, which is what gives even illumination across the field.',
+    'The excitation comes to a focus at the objective back focal plane and leaves the objective parallel to the axis, which is why the whole field lights up at once rather than a spot. That is Köhler illumination again, arriving through the objective instead of a condenser.',
   ],
 };
 
+/**
+ * Laser scanning confocal.
+ *
+ * DESCANNING is the point of this layout and the reason it is drawn the way it
+ * is. The emission returns through the very same galvanometer mirrors that
+ * swept the excitation out, which undoes the scan and holds the emission spot
+ * stationary on a fixed pinhole. A drawing that routes the emission around the
+ * mirrors — which this one did until it was checked — depicts an instrument
+ * whose focused spot would sweep across the pinhole as the mirrors moved, so
+ * only the middle of the field would ever get through. The dichroic therefore
+ * sits upstream of the mirrors, on the laser side, and is passed twice.
+ */
 const confocal: Modality = {
   id: 'confocal',
   name: 'Laser scanning confocal',
@@ -705,56 +882,71 @@ const confocal: Modality = {
   summary:
     'A focused spot is scanned across the sample and a pinhole rejects everything out of focus.',
   principle:
-    'Two changes from epifluorescence, and only the second matters optically. The field is illuminated one point at a time by a scanned laser focus, and the detector sits behind a pinhole in a plane conjugate with that focus. Light from above or below the focal plane arrives at the pinhole out of focus and is largely blocked, which is what produces optical sectioning.',
+    'Two changes from epifluorescence, and only the second matters optically. The field is ' +
+    'illuminated one point at a time by a scanned laser focus, and the detector sits behind a ' +
+    'pinhole in a plane conjugate with that focus. Light from above or below the focal plane ' +
+    'arrives at the pinhole out of focus and is largely blocked, which is what produces optical ' +
+    'sectioning. The emission comes back through the same scan mirrors, which undoes the scan and ' +
+    'holds the spot still on the pinhole — without that the pinhole could not be fixed.',
   parts: [
     {
       id: 'laser',
       name: 'Laser',
       kind: 'source',
-      at: [X.lampArm, Y.dichroic, 0],
-      axis: AXIS_X,
+      at: [X.confocalArm, Y.sample + 52, 0],
       radius: 9,
-      thickness: 22,
-      role: 'A single line rather than a band — 488 nm for GFP, 561 for red proteins. Monochromatic, so no excitation filter is strictly needed, though one is usually fitted to clean up plasma lines.',
+      thickness: 26,
+      conjugate: 'field',
+      role: 'A single line rather than a band — 488 nm for GFP, 561 for red proteins. Delivered through a single-mode fibre whose core is the point source, which makes the laser itself the first of the three confocal planes.',
       ifWrong:
         'A line on the shoulder of the excitation spectrum costs signal in direct proportion, and no amount of detector gain gets it back — it amplifies the noise equally.',
-    },
-    {
-      id: 'scan-mirrors',
-      name: 'Galvanometer scan mirrors',
-      kind: 'mirror',
-      at: [X.scanArm, Y.dichroic, 0],
-      axis: AXIS_45,
-      radius: 12,
-      thickness: 2,
-      role: 'Two mirrors on galvanometers sweep the focused spot across the field in x and y. They sit in a plane conjugate with the objective back aperture, so the beam pivots there and the focus moves across the field without the illumination cone changing shape.',
-      ifWrong:
-        'Scanning faster buys frame rate and spends photons per pixel: the signal falls with dwell time, and the image gets noisier rather than dimmer.',
     },
     {
       id: 'dichroic',
       name: 'Dichroic mirror',
       kind: 'dichroic',
-      at: [0, Y.dichroic, 0],
+      at: [X.confocalArm, Y.dichroic, 0],
       axis: AXIS_45,
-      radius: 20,
+      radius: 15,
       thickness: 2,
-      role: 'Separates the excitation going down from the emission coming back up, exactly as in epifluorescence.',
+      role: 'Turns the laser into the scan head and lets the returning emission pass straight through to the pinhole. Passed twice, in opposite directions, and it is the only thing separating an excitation beam from an emission perhaps a millionth as bright.',
+      ifWrong:
+        'An edge too close to the emission peak throws away signal; too close to the laser line and the excitation leaks to the detector, where it is indistinguishable from an extremely bright sample.',
+    },
+    {
+      id: 'scan-mirrors',
+      name: 'Galvanometer scan mirrors',
+      kind: 'mirror',
+      at: [0, Y.dichroic, 0],
+      axis: AXIS_45_DOWN,
+      radius: 13,
+      thickness: 2,
+      conjugate: 'aperture',
+      role: 'Two mirrors on galvanometers sweep the focused spot across the field in x and y, and the emission returns across the same mirrors — which undoes the sweep and holds the emission spot still on the pinhole. They sit in a plane conjugate with the objective back aperture, so the beam pivots there and the illumination cone keeps its shape as the spot moves.',
+      ifWrong:
+        'Scanning faster buys frame rate and spends photons per pixel: the signal falls with dwell time, so the image gets noisier rather than dimmer.',
     },
     specimen,
     objective(1.4, 'oil'),
     backFocalPlane,
     {
-      ...tubeLens,
-      role: 'Focuses the returning emission onto the pinhole, which is why the pinhole plane is conjugate with the focal plane in the sample.',
+      id: 'pinhole-lens',
+      name: 'Pinhole lens',
+      kind: 'lens',
+      at: [X.confocalArm - 28, Y.dichroic, 0],
+      axis: AXIS_X,
+      radius: 12,
+      thickness: 6,
+      role: 'Focuses the descanned emission onto the pinhole. It is this lens that makes the pinhole plane conjugate with the illuminated focus in the specimen.',
     },
     {
       id: 'pinhole',
       name: 'Confocal pinhole',
       kind: 'pinhole',
-      at: [0, Y.intermediateImage, 0],
-      radius: 18,
-      innerRadius: 3.2,
+      at: [X.confocalArm - 54, Y.dichroic, 0],
+      axis: AXIS_X,
+      radius: 16,
+      innerRadius: 3,
       thickness: 2,
       conjugate: 'field',
       role: 'The part that makes it confocal. In a plane conjugate with the illuminated focus, so in-focus light passes and out-of-focus light arrives spread out and is mostly blocked. Sized in Airy units — one Airy unit matches the Airy disc diameter.',
@@ -765,99 +957,66 @@ const confocal: Modality = {
       id: 'pmt',
       name: 'PMT or GaAsP detector',
       kind: 'detector',
-      at: [0, Y.detector, 0],
-      radius: 18,
-      thickness: 18,
+      at: [X.confocalArm - 84, Y.dichroic, 0],
+      axis: AXIS_X,
+      radius: 16,
+      thickness: 20,
       role: 'A point detector, because at any instant there is only one illuminated point to measure. GaAsP has roughly twice the quantum efficiency of a classical PMT in the green, which is why it displaced it.',
       ifWrong:
         'Gain is not signal. Turning it up brightens the display and amplifies shot noise with it; more photons come only from more laser, longer dwell, or a better dye.',
     },
-    ...EPI_STAND,
+    ...CONFOCAL_STAND,
   ],
   rays: [
     {
       id: 'ex-a',
       band: 'excitation',
       points: [
-        point(X.lampArm, Y.dichroic),
-        point(X.scanArm, Y.dichroic),
+        point(X.confocalArm, Y.sample + 52),
+        point(X.confocalArm, Y.dichroic),
         point(0, Y.dichroic),
         point(0, Y.objective),
         point(0, Y.sample),
       ],
     },
     {
+      // The same beam a moment later, with the mirrors turned: the focus has
+      // moved across the field and the beam still fills the back aperture.
       id: 'ex-scan',
       band: 'excitation',
+      mirrorMoved: true,
       points: [
-        point(X.scanArm, Y.dichroic),
-        point(0, Y.dichroic + 9),
-        point(9, Y.objective),
-        point(0, Y.sample),
+        point(X.confocalArm, Y.dichroic),
+        point(0, Y.dichroic),
+        point(11, Y.objective),
+        point(7, Y.sample),
       ],
     },
-    {
-      id: 'em-focal-a',
-      band: 'emission',
-      points: [
-        point(0, Y.sample),
-        point(12, Y.objective),
-        point(12, Y.dichroic),
-        point(12, Y.tubeLens),
-        point(0, Y.intermediateImage),
-        point(-7, Y.detector),
-      ],
-    },
-    {
-      id: 'em-focal-b',
-      band: 'emission',
-      points: [
-        point(0, Y.sample),
-        point(-12, Y.objective),
-        point(-12, Y.dichroic),
-        point(-12, Y.tubeLens),
-        point(0, Y.intermediateImage),
-        point(7, Y.detector),
-      ],
-    },
-    {
-      id: 'em-out-a',
-      band: 'surround',
-      points: [
-        point(0, Y.sample - 26),
-        point(16, Y.objective),
-        point(16, Y.tubeLens),
-        point(9, Y.intermediateImage),
-      ],
-    },
-    {
-      id: 'em-out-b',
-      band: 'surround',
-      points: [
-        point(0, Y.sample - 26),
-        point(-16, Y.objective),
-        point(-16, Y.tubeLens),
-        point(-9, Y.intermediateImage),
-      ],
-    },
+    confocalEmissionRay('em-focal-a', 12, 'emission'),
+    confocalEmissionRay('em-focal-b', -12, 'emission'),
+    // Out of focus: arrives at the pinhole plane still spread, and stops on the
+    // stop around the hole rather than passing through it.
+    confocalEmissionRay('em-out-a', 19, 'surround'),
+    confocalEmissionRay('em-out-b', -19, 'surround'),
   ],
   bands: [
     {
       band: 'excitation',
       label: 'Excitation',
       description:
-        'A laser focused to a diffraction-limited spot and swept across the field by the scan mirrors.',
+        'A laser focused to a diffraction-limited spot and swept across the field by the scan mirrors. Two positions of the same beam are drawn.',
     },
     {
       band: 'emission',
       label: 'In-focus emission',
-      description: 'Comes to a focus at the pinhole and passes through to the detector.',
+      description:
+        'Back through the same mirrors, which undoes the scan and holds the spot still on the pinhole, then through it to the detector.',
     },
     {
       band: 'surround',
       label: 'Out-of-focus emission',
       description:
-        'Arrives at the pinhole plane spread out rather than focused, so most of it strikes the surrounding stop. This rejection is the optical sectioning.',
+        'Arrives at the pinhole plane spread out rather than focused, so most of it strikes the stop around the hole. That rejection is the optical sectioning.',
     },
   ],
   optics: {
@@ -866,9 +1025,20 @@ const confocal: Modality = {
     wavelength: 520,
     gainKey: 'confocal',
   },
+  lightOrder: [
+    'laser',
+    'dichroic',
+    'scan-mirrors',
+    'objective',
+    'specimen',
+    'bfp',
+    'pinhole-lens',
+    'pinhole',
+    'pmt',
+  ],
   caveats: [
-    'The out-of-focus paths are drawn stopping at the pinhole plane. In a real instrument a little of that light does get through, which is why sectioning is a strong suppression rather than a clean cut.',
-    'A real scan head has a scan lens and a tube lens either side of the mirrors to keep the beam collimated at the back aperture. They are left out here so the pivot at the mirrors stays readable.',
+    'The three confocal planes are the laser point source, the illuminated spot in the specimen and the pinhole. They are conjugate with one another, which is what the name means, and it is why the emission has to be descanned before it reaches the pinhole.',
+    'A real scan head also carries a scan lens and a tube lens between the mirrors and the objective, kept out here so the pivot at the mirrors stays readable. The out-of-focus paths are drawn stopping at the pinhole plane; in an instrument a little of that light does get through, so sectioning is a strong suppression rather than a clean cut.',
   ],
 };
 
@@ -1013,11 +1183,12 @@ const dic: Modality = {
   parts: [
     lamp('Lamp', 'An ordinary transmitted-light source, polarised immediately after it.'),
     collector,
+    fieldDiaphragm,
     {
       id: 'polariser',
       name: 'Polariser',
       kind: 'polariser',
-      at: [0, Y.fieldDiaphragm, 0],
+      at: [0, (Y.fieldDiaphragm + Y.apertureDiaphragm) / 2, 0],
       radius: 21,
       thickness: 3,
       role: 'Linearly polarises the illumination at 45° to the shear direction, so the Wollaston splits it into two equal components.',
@@ -1073,7 +1244,7 @@ const dic: Modality = {
       id: 'ordinary',
       band: 'ordinary',
       points: [
-        point(0, Y.fieldDiaphragm),
+        point(0, (Y.fieldDiaphragm + Y.apertureDiaphragm) / 2),
         point(0, Y.apertureDiaphragm),
         point(-7, Y.condenser),
         point(-2.5, Y.sample),
@@ -1089,7 +1260,7 @@ const dic: Modality = {
       id: 'extraordinary',
       band: 'extraordinary',
       points: [
-        point(0, Y.fieldDiaphragm),
+        point(0, (Y.fieldDiaphragm + Y.apertureDiaphragm) / 2),
         point(0, Y.apertureDiaphragm),
         point(7, Y.condenser),
         point(2.5, Y.sample),

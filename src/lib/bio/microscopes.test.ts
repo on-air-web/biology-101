@@ -76,14 +76,19 @@ describe('the optical trains are physically ordered', () => {
     }
   });
 
-  it('puts the objective above the specimen and below the tube lens', () => {
+  it('puts the imaging objective above the specimen and below the tube lens', () => {
+    // By id, not by kind. A light sheet carries two objectives and the
+    // illumination one sits beside the specimen rather than above it, so
+    // taking the first of its kind picks the wrong lens and asserts the
+    // wrong thing about it.
     for (const modality of MODALITIES) {
-      const objective = modality.parts.find((p) => p.kind === 'objective');
+      const objective = modality.parts.find((p) => p.id === 'objective');
       const specimen = modality.parts.find((p) => p.kind === 'sample')!;
       const tube = modality.parts.find((p) => p.id === 'tube-lens');
       expect(objective, modality.id).toBeDefined();
-      expect(objective!.at[1]).toBeGreaterThan(specimen.at[1]);
-      if (tube) expect(tube.at[1]).toBeGreaterThan(objective!.at[1]);
+      expect(objective!.kind, modality.id).toBe('objective');
+      expect(objective!.at[1], modality.id).toBeGreaterThan(specimen.at[1]);
+      if (tube) expect(tube.at[1], modality.id).toBeGreaterThan(objective!.at[1]);
     }
   });
 
@@ -97,28 +102,76 @@ describe('the optical trains are physically ordered', () => {
   });
 
   it('sends each ray band the way the light actually goes', () => {
-    // Excitation in an epi instrument travels *down* the objective to the
-    // specimen; everything else travels up from it. Asserting one direction for
-    // all of them would have been wrong in exactly the way the diagram must not
-    // be, so the two cases are separated here.
+    // Excitation travels *to* the specimen; everything else travels up from it.
+    // Asserting one direction for all of them would have been wrong in exactly
+    // the way the diagram must not be, so the cases are separated.
+    //
+    // Which bands are incident is listed here rather than imported, so that
+    // adding a band to the source cannot quietly excuse it from the check.
+    const incident = ['excitation', 'depletion'];
+
     for (const modality of MODALITIES) {
       for (const ray of modality.rays) {
         expect(ray.points.length, `${modality.id}/${ray.id}`).toBeGreaterThan(1);
         const first = ray.points[0]![1];
         const last = ray.points[ray.points.length - 1]![1];
 
-        if (ray.band === 'excitation') {
-          expect(
-            last,
-            `${modality.id}/${ray.id}: excitation must descend to the specimen`,
-          ).toBeLessThan(first);
-          expect(last, `${modality.id}/${ray.id}: excitation must reach the specimen`).toBe(0);
+        if (incident.includes(ray.band)) {
+          // The invariant that holds for every instrument: incident light ends
+          // at the specimen plane.
+          expect(last, `${modality.id}/${ray.id}: must reach the specimen`).toBe(0);
+          // Descending is a property of illuminating THROUGH the imaging
+          // objective. A light sheet comes in from the side through a second
+          // objective, and requiring it to descend would be requiring the
+          // diagram to be wrong.
+          if (modality.illumination !== 'orthogonal') {
+            expect(
+              last,
+              `${modality.id}/${ray.id}: excitation must descend to the specimen`,
+            ).toBeLessThan(first);
+          }
         } else {
           expect(last, `${modality.id}/${ray.id} must travel upwards overall`).toBeGreaterThan(
             first,
           );
         }
       }
+    }
+  });
+
+  it('gives an orthogonal instrument a second objective, and an epi one only the imaging objective', () => {
+    // The defining structural fact about a light sheet: illumination and
+    // detection are decoupled, which means two objectives at right angles.
+    for (const modality of MODALITIES) {
+      const illuminationObjective = modality.parts.find(
+        (part) => part.id === 'illumination-objective',
+      );
+      if (modality.illumination === 'orthogonal') {
+        expect(
+          illuminationObjective,
+          `${modality.id} must have an illumination objective`,
+        ).toBeDefined();
+        // At right angles to the imaging axis, which is +Y.
+        expect(Math.abs(illuminationObjective!.axis![1]), modality.id).toBeCloseTo(0, 6);
+        // And it must sit beside the specimen, not above or below it.
+        expect(Math.abs(illuminationObjective!.at[0]), modality.id).toBeGreaterThan(10);
+        expect(illuminationObjective!.at[1], modality.id).toBe(0);
+      } else {
+        expect(illuminationObjective, `${modality.id} must not have one`).toBeUndefined();
+      }
+    }
+  });
+
+  it('keeps the STED depletion beam on the excitation it depletes', () => {
+    // A doughnut that does not land on the excitation spot depletes the wrong
+    // place. Both must arrive at the same point in the specimen.
+    const stedModality = getModality('sted')!;
+    const excitation = stedModality.rays.filter((r) => r.band === 'excitation');
+    const depletion = stedModality.rays.filter((r) => r.band === 'depletion');
+    expect(depletion.length).toBeGreaterThan(1);
+    const endOf = (r: (typeof depletion)[number]) => r.points[r.points.length - 1]!;
+    for (const ray of [...excitation, ...depletion]) {
+      expect(endOf(ray)[0], `${ray.id} must land on the axis with the others`).toBeCloseTo(0, 6);
     }
   });
 

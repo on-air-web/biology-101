@@ -158,6 +158,17 @@ export interface TechniqueGain {
   note: string;
 }
 
+/**
+ * Depletion intensity as a multiple of the dye's saturation intensity, for the
+ * instrument the STED modality is drawn as.
+ *
+ * A representative figure, not a constant of nature. Exported so the gain it
+ * produces can be recomputed rather than quoted — the resolution scales as
+ * √(1 + I/I_sat), so every STED number in the literature is a claim about a
+ * particular depletion power on a particular dye.
+ */
+export const STED_SATURATION_FACTOR = 100;
+
 export const TECHNIQUE_GAINS: Record<string, TechniqueGain> = {
   widefield: {
     lateral: 1,
@@ -184,4 +195,117 @@ export const TECHNIQUE_GAINS: Record<string, TechniqueGain> = {
     axial: 1,
     note: 'DIC gives a shear-direction gradient image with apparent relief. The resolution is the ordinary limit; the sectioning is better than brightfield because the shear is small.',
   },
+  tirf: {
+    lateral: 1,
+    axial: 1,
+    note: 'TIRF resolves nothing finer. What it changes is how much of the specimen is excited at all: the evanescent field decays exponentially and reaches under about 100 nm past the coverslip, roughly a tenth of a confocal section. That is background excluded, not resolution gained.',
+  },
+  'spinning-disc': {
+    lateral: 1,
+    axial: 1.4,
+    note: 'The same pinhole physics as a point-scanning confocal, run through thousands of pinholes at once. Sectioning is comparable in a thin specimen and worse in a thick one, because light returning through one pinhole reaches its neighbours — a crosstalk a single pinhole cannot suffer.',
+  },
+  sim: {
+    lateral: 2,
+    axial: 2,
+    note: 'A factor of two, and exactly two rather than a measured figure. The illumination pattern is itself formed by the objective, so its finest fringe spacing is the microscope’s own cutoff; the moiré between that pattern and the specimen folds sample frequencies up to twice the cutoff into the passband, and the reconstruction unfolds them. Three-beam 3D-SIM does the same axially.',
+  },
+  sted: {
+    // sqrt(1 + I/Isat), the saturation form. Written out rather than typed as a
+    // number: the whole point is that the gain is a property of the depletion
+    // power used, not of the method.
+    lateral: Math.sqrt(1 + STED_SATURATION_FACTOR),
+    axial: 1,
+    note: `Resolution scales as √(1 + I/I_sat), so the gain is a statement about depletion power rather than about STED. Drawn here at I/I_sat = ${STED_SATURATION_FACTOR}, which is a factor of about ${Math.sqrt(1 + STED_SATURATION_FACTOR).toFixed(1)}. Turning the depletion laser up sharpens the image and bleaches the specimen faster, and that trade is the whole practical difficulty of the technique. A plain doughnut confines the spot laterally only; axial gain needs a second, differently shaped depletion pattern.`,
+  },
+  airyscan: {
+    // √2 is the pixel-reassignment gain, and it is derivable: each detector
+    // element sees a product of the excitation and detection PSFs, whose
+    // width is the geometric mean of the two.
+    lateral: Math.SQRT2,
+    axial: 1.4,
+    note: 'The √2 drawn here is the optical gain from pixel reassignment alone — each of the 32 elements is a small off-axis pinhole, and shifting its image back to the centre before summing narrows the effective PSF without discarding light. Vendors quote closer to 1.7×, which includes a linear deconvolution afterwards; that part is processing rather than optics and is left out of the figure above.',
+  },
+  'light-sheet': {
+    lateral: 1,
+    axial: 1,
+    note: 'The lateral resolution is the detection objective’s, unchanged. The axial resolution is whichever is worse of the detection PSF and the thickness of the sheet, so a light sheet only sharpens the axial figure when the sheet is thinner than the depth of field — which for a high-NA detection objective it usually is not. What it does buy is that nothing outside the imaged plane is illuminated at all, and that is a photobleaching and speed argument rather than a resolution one.',
+  },
+  'lattice-light-sheet': {
+    lateral: 1,
+    axial: 1,
+    note: 'A dithered lattice gives an effective sheet near 1 µm against the 4–5 µm of a tightly focused Gaussian sheet, which matches the depth of field of a high-NA objective far better — but the axial resolution is still set by the detection objective, so the figure above does not move. The structured-illumination mode of the same instrument reports roughly 1.3–1.5× finer than the dithered mode, at about 7.5× the acquisition time.',
+  },
 };
+
+export interface EvanescentInput {
+  /** Illumination wavelength in the incident medium, nm. */
+  wavelength: number;
+  /** Refractive index of the incident medium — the coverslip. */
+  coreIndex: number;
+  /** Refractive index of the specimen medium — buffer or cytosol. */
+  sampleIndex: number;
+  /** Angle of incidence measured from the normal to the interface, degrees. */
+  angle: number;
+}
+
+const DEG = Math.PI / 180;
+
+/**
+ * The critical angle for total internal reflection, in degrees.
+ *
+ * Snell's law at the point where the refracted ray runs along the interface:
+ * n1 sin θc = n2 sin 90°, so sin θc = n2/n1.
+ */
+export function criticalAngle(coreIndex: number, sampleIndex: number): number {
+  if (!(coreIndex > sampleIndex)) {
+    throw new ResolutionError(
+      `Total internal reflection needs the incident medium to be denser than the specimen: ` +
+        `n = ${coreIndex} against ${sampleIndex} gives no critical angle and no evanescent field.`,
+    );
+  }
+  return Math.asin(sampleIndex / coreIndex) / DEG;
+}
+
+/**
+ * Penetration depth of the evanescent field, nm — the 1/e depth of the
+ * exponential decay, which is what sets the TIRF optical section.
+ *
+ *   d = λ / (4π √(n1² sin²θ − n2²))
+ *
+ * Refused rather than extrapolated below the critical angle: there is no
+ * evanescent field there, the beam simply refracts into the specimen, and
+ * returning a large number would describe an instrument that is not doing TIRF.
+ */
+export function evanescentDepth(input: EvanescentInput): number {
+  const { wavelength, coreIndex, sampleIndex, angle } = input;
+  if (!(wavelength > 0)) throw new ResolutionError('The wavelength must be greater than zero.');
+
+  const critical = criticalAngle(coreIndex, sampleIndex);
+  if (angle <= critical) {
+    throw new ResolutionError(
+      `At ${angle}° the beam is at or below the critical angle of ${critical.toFixed(1)}°, so it ` +
+        `refracts into the specimen instead of reflecting. There is no evanescent field to measure.`,
+    );
+  }
+
+  const sin = Math.sin(angle * DEG);
+  return wavelength / (4 * Math.PI * Math.sqrt(coreIndex ** 2 * sin ** 2 - sampleIndex ** 2));
+}
+
+/**
+ * The steepest angle an objective can deliver into the specimen, degrees.
+ *
+ * NA = n sin θ, so the objective's own aperture sets the ceiling — which is why
+ * a TIRF objective has to have an NA above the refractive index of the specimen
+ * and not merely a high one.
+ */
+export function maximumIncidence(numericalAperture: number, coreIndex: number): number {
+  const ratio = numericalAperture / coreIndex;
+  if (ratio > 1) {
+    throw new ResolutionError(
+      `NA ${numericalAperture} is impossible in a medium of n ${coreIndex}.`,
+    );
+  }
+  return Math.asin(ratio) / DEG;
+}

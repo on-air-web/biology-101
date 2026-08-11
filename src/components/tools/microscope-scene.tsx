@@ -163,6 +163,11 @@ const BAND_STYLE: Record<RayBand, { stroke: string; width: number; dash?: string
   illumination: { stroke: 'var(--color-amber-400)', width: 1.4, dash: '5 3' },
   imaging: { stroke: 'var(--color-gfp-400)', width: 1.6 },
   excitation: { stroke: 'var(--color-link-400)', width: 1.7 },
+  // Drawn red because a depletion beam is red-shifted from the excitation it
+  // suppresses — 592 or 775 nm against a blue line. Thicker than the rest
+  // because it carries orders of magnitude more power, which is the whole
+  // practical difficulty of STED.
+  depletion: { stroke: 'var(--color-rose-lab-400)', width: 2.2 },
   emission: { stroke: 'var(--color-gfp-400)', width: 1.7 },
   surround: { stroke: 'var(--color-amber-400)', width: 1.4, dash: '4 3' },
   diffracted: { stroke: 'var(--color-rose-lab-400)', width: 1.6 },

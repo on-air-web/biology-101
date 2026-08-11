@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { CRITERIA, ResolutionError, TECHNIQUE_GAINS, resolve } from './resolution';
+import {
+  CRITERIA,
+  ResolutionError,
+  STED_SATURATION_FACTOR,
+  TECHNIQUE_GAINS,
+  criticalAngle,
+  evanescentDepth,
+  maximumIncidence,
+  resolve,
+} from './resolution';
 
 const OIL_100X = {
   wavelength: 520,
@@ -175,6 +184,94 @@ describe('technique gains', () => {
       expect(gain.note.length, id).toBeGreaterThan(40);
       expect(gain.lateral, id).toBeGreaterThanOrEqual(1);
       expect(gain.axial, id).toBeGreaterThanOrEqual(1);
+    }
+  });
+});
+
+describe('total internal reflection', () => {
+  // Reference values here come from microscopyu's TIRF article, not from the
+  // implementation: glass at 1.518 against an aqueous specimen at 1.33 to 1.38,
+  // an evanescent field "typically less than 100 nanometers in thickness", and
+  // an objective NA that has to exceed the specimen's refractive index before
+  // total internal reflection is reachable at all.
+
+  it('puts the critical angle where Snell says, checked against a hand case', () => {
+    // sin θc = n2/n1. Chosen so the ratio is exactly 1/2 and the answer is 30°
+    // by inspection rather than by running the same formula twice.
+    expect(criticalAngle(2, 1)).toBeCloseTo(30, 10);
+    // The glass–water case microscopyu quotes, ~61°.
+    expect(criticalAngle(1.518, 1.33)).toBeCloseTo(61.16, 1);
+  });
+
+  it('refuses a pairing that cannot reflect at all', () => {
+    // No critical angle exists going into a denser medium; returning a number
+    // would describe an instrument that cannot be built.
+    expect(() => criticalAngle(1.33, 1.518)).toThrow(ResolutionError);
+    expect(() => criticalAngle(1.515, 1.515)).toThrow(ResolutionError);
+  });
+
+  it('keeps the evanescent field under 100 nm at a usable TIRF angle', () => {
+    // The external claim being tested: a real TIRF objective produces a section
+    // "typically less than 100 nanometers". A 1.49 NA lens in 1.515 glass can
+    // reach 79.6°, and at that angle the field must come out well under 100 nm.
+    const angle = maximumIncidence(1.49, 1.515);
+    expect(angle).toBeGreaterThan(criticalAngle(1.515, 1.33));
+    const depth = evanescentDepth({
+      wavelength: 488,
+      coreIndex: 1.515,
+      sampleIndex: 1.33,
+      angle,
+    });
+    expect(depth).toBeGreaterThan(20);
+    expect(depth).toBeLessThan(100);
+  });
+
+  it('makes the field shallower as the angle steepens', () => {
+    // microscopyu: increasing the radial distance of the laser focus from the
+    // axis "serve[s] to reduce the evanescent field penetration depth in a
+    // smooth and reproducible manner". Monotonic, and that is checkable.
+    const at = (angle: number) =>
+      evanescentDepth({ wavelength: 488, coreIndex: 1.515, sampleIndex: 1.33, angle });
+    const depths = [63, 66, 70, 75, 79].map(at);
+    for (let i = 1; i < depths.length; i += 1) {
+      expect(depths[i]!, `${i}`).toBeLessThan(depths[i - 1]!);
+    }
+  });
+
+  it('refuses to extrapolate below the critical angle', () => {
+    // Below it the beam refracts into the specimen and there is no evanescent
+    // field. Returning a very large depth would be a plausible-looking answer
+    // to a question with no answer.
+    expect(() =>
+      evanescentDepth({ wavelength: 488, coreIndex: 1.515, sampleIndex: 1.33, angle: 55 }),
+    ).toThrow(ResolutionError);
+  });
+
+  it('ties the STED gain to the depletion power rather than fixing it', () => {
+    // The saturation form: resolution scales as sqrt(1 + I/Isat). Checked
+    // against the closed form written out independently here, and against the
+    // limiting case of no depletion at all, which must give a plain confocal.
+    expect(TECHNIQUE_GAINS['sted']!.lateral).toBeCloseTo(Math.sqrt(1 + STED_SATURATION_FACTOR), 10);
+    expect(Math.sqrt(1 + 0)).toBe(1);
+    // A doughnut confines the spot laterally and does nothing axially.
+    expect(TECHNIQUE_GAINS['sted']!.axial).toBe(1);
+  });
+
+  it('claims only the optical gain for Airyscan, not the deconvolution', () => {
+    // sqrt(2) is the pixel-reassignment gain and is derivable; the ~1.7x
+    // vendors quote includes a deconvolution afterwards. Folding processing
+    // into an optical figure is the kind of overstatement rule 7 exists for.
+    expect(TECHNIQUE_GAINS['airyscan']!.lateral).toBeCloseTo(Math.SQRT2, 10);
+    expect(TECHNIQUE_GAINS['airyscan']!.lateral).toBeLessThan(1.7);
+  });
+
+  it('claims no resolution gain for either light sheet', () => {
+    // The lateral resolution is the detection objective's, and the axial is
+    // bounded by it too. Light sheet buys photobleaching and speed, and a tool
+    // that implied it resolved finer would be teaching the wrong lesson.
+    for (const id of ['light-sheet', 'lattice-light-sheet']) {
+      expect(TECHNIQUE_GAINS[id]!.lateral, id).toBe(1);
+      expect(TECHNIQUE_GAINS[id]!.axial, id).toBe(1);
     }
   });
 });

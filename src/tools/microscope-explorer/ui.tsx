@@ -7,7 +7,7 @@ import { MicroscopeScene } from '@/components/tools/microscope-scene';
 import { NumberInput } from '@/components/ui/quantity-input';
 import { Result } from '@/components/ui/result';
 import { ShareButton } from '@/components/ui/share-button';
-import { MODALITIES, getModality, type RayBand } from '@/lib/bio/microscopes';
+import { MODALITIES, MODALITY_GROUPS, getModality, type RayBand } from '@/lib/bio/microscopes';
 import { CRITERIA, type CriterionId } from '@/lib/bio/resolution';
 import { formatNumber, parseNumber } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -87,35 +87,36 @@ export default function MicroscopeExplorerTool() {
 
   return (
     <div className="rounded-lab-lg border border-line bg-surface p-4 sm:p-5">
-      <fieldset>
-        <legend className="lbl">Instrument</legend>
-        <div className="mt-1.5 flex flex-wrap gap-1.5">
-          {MODALITIES.map((entry) => {
-            const on = entry.id === modalityId;
+      {/* A dropdown rather than a row of chips: twelve instruments wrap to
+          three lines as buttons and stop reading as one choice, and the groups
+          say something a flat row cannot — that TIRF is a kind of widefield
+          fluorescence and Airyscan is a kind of confocal. */}
+      <div className="max-w-md">
+        <label htmlFor="field-scope-modality" className="lbl">
+          Instrument
+        </label>
+        <select
+          id="field-scope-modality"
+          value={modalityId}
+          onChange={(event) => chooseModality(event.target.value)}
+          className="mt-1.5 h-11 w-full rounded-lab border border-line-strong bg-surface px-2.5 text-sm outline-none focus:ring-2 focus:ring-brand"
+        >
+          {MODALITY_GROUPS.map((group) => {
+            const inGroup = MODALITIES.filter((entry) => entry.group === group);
+            if (inGroup.length === 0) return null;
             return (
-              <label
-                key={entry.id}
-                className={cn(
-                  'flex h-9 cursor-pointer items-center rounded-lab border px-3 text-[13px]',
-                  'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand',
-                  on
-                    ? 'border-gfp-400 bg-gfp-400/10 text-ink'
-                    : 'border-line-strong text-ink-muted hover:text-ink',
-                )}
-              >
-                <input
-                  type="radio"
-                  name="modality"
-                  checked={on}
-                  onChange={() => chooseModality(entry.id)}
-                  className="sr-only"
-                />
-                {entry.shortName}
-              </label>
+              <optgroup key={group} label={group}>
+                {inGroup.map((entry) => (
+                  <option key={entry.id} value={entry.id}>
+                    {entry.name}
+                  </option>
+                ))}
+              </optgroup>
             );
           })}
-        </div>
-      </fieldset>
+        </select>
+        <p className="mt-1.5 text-[12px] leading-[1.6] text-ink-faint">{modality.summary}</p>
+      </div>
 
       <p className="mt-3 text-[13px] leading-[1.65] text-ink-muted">{modality.principle}</p>
 
@@ -448,6 +449,7 @@ function bandColour(band: RayBand): string {
     case 'excitation':
     case 'ordinary':
       return 'var(--color-link-400)';
+    case 'depletion':
     case 'diffracted':
     case 'extraordinary':
       return 'var(--color-rose-lab-400)';

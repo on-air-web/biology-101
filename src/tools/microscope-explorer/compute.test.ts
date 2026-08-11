@@ -132,14 +132,21 @@ describe('standParts', () => {
   it('gives every modality a recognisable stand', () => {
     // Without these the drawing is a stack of discs in mid-air and nobody can
     // map "condenser aperture diaphragm" onto the knob they are about to turn.
+    //
+    // What counts as the stand depends on the instrument. A light sheet is not
+    // built on an upright frame at all — it has no limb, no nosepiece and no
+    // slide stage, because two objectives meet at right angles over a chamber
+    // on a breadboard. Asserting the upright parts for it would be asserting
+    // something untrue in order to keep one list.
+    const UPRIGHT = ['base', 'limb', 'stage', 'nosepiece', 'head'];
+    const ORTHOGONAL = ['base', 'chamber', 'sample-positioner', 'illumination-arm'];
+
     for (const modality of MODALITIES) {
       const stand = standParts(modality);
+      const ids = stand.map((p) => p.id);
       expect(stand.length, modality.id).toBeGreaterThan(4);
-      for (const id of ['base', 'limb', 'stage', 'nosepiece', 'head']) {
-        expect(
-          stand.map((p) => p.id),
-          `${modality.id} is missing ${id}`,
-        ).toContain(id);
+      for (const id of modality.illumination === 'orthogonal' ? ORTHOGONAL : UPRIGHT) {
+        expect(ids, `${modality.id} is missing ${id}`).toContain(id);
       }
     }
   });

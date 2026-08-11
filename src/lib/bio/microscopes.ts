@@ -75,11 +75,48 @@ export type RayBand =
   | 'illumination'
   | 'imaging'
   | 'excitation'
+  /**
+   * The STED depletion beam. Its own band rather than a second excitation,
+   * because it travels the same way and does the opposite thing: it drives
+   * molecules back down before they can fluoresce.
+   */
+  | 'depletion'
   | 'emission'
   | 'surround'
   | 'diffracted'
   | 'ordinary'
   | 'extraordinary';
+
+/**
+ * Bands that travel towards the specimen rather than away from it.
+ *
+ * Named once here because two separate things need to agree about it: the
+ * direction test, and anybody reading the diagram. Everything else in an
+ * optical train leaves the specimen and goes up to a detector.
+ */
+export const INCIDENT_BANDS: readonly RayBand[] = ['excitation', 'depletion'];
+
+/**
+ * Where the illumination comes from, which is the thing that most changes the
+ * shape of an instrument.
+ *
+ * Declared rather than inferred from the geometry. A light sheet illuminates
+ * through a second objective at right angles to the first, so its excitation
+ * arrives from the side and never descends the imaging column — which is a
+ * fact about the instrument, not something to be guessed at from coordinates.
+ */
+export type IlluminationGeometry = 'transmitted' | 'epi' | 'orthogonal';
+
+/** Groups for the instrument picker, in the order they should be offered. */
+export const MODALITY_GROUPS = [
+  'Transmitted light',
+  'Fluorescence',
+  'Confocal and scanning',
+  'Super-resolution',
+  'Light sheet',
+] as const;
+
+export type ModalityGroup = (typeof MODALITY_GROUPS)[number];
 
 export interface Ray {
   id: string;
@@ -102,6 +139,10 @@ export interface Modality {
   id: string;
   name: string;
   shortName: string;
+  /** Which group of the picker it belongs under. */
+  group: ModalityGroup;
+  /** Where the excitation comes from. See IlluminationGeometry. */
+  illumination: IlluminationGeometry;
   /** One line for the picker. */
   summary: string;
   /** What the technique is actually for, and its cost. */
@@ -156,7 +197,15 @@ const Y = {
 } as const;
 
 /** The epi arm comes in from −X and turns up at the dichroic. */
-const X = { lampArm: -118, filterArm: -84, confocalArm: -56 } as const;
+const X = {
+  lampArm: -118,
+  filterArm: -84,
+  confocalArm: -56,
+  /** The TIRF annulus, in the arm and conjugate with the back focal plane. */
+  tirfStop: -60,
+  /** Where a light sheet's illumination arm begins. */
+  sheetArm: -150,
+} as const;
 
 const AXIS_Y: Vec3 = [0, 1, 0];
 /**
@@ -502,6 +551,12 @@ const point = (x: number, y: number, z = 0): Vec3 => [x, y, z];
  * x + y = mirrorY. Solving the segment against it puts the bend exactly on the
  * mirror instead of near it, which is what lets the reflection law be checked
  * rather than eyeballed.
+ *
+ * NOTE THE TWO ASSUMPTIONS, both easy to walk into. This is the plane of an
+ * AXIS_45_DOWN mirror centred on the optical axis. An AXIS_45 mirror has the
+ * plane y − x = c instead, and a mirror out along an arm has neither — so a
+ * fold at one of those has to be constructed some other way, not by reaching
+ * for this.
  */
 function foldOn45(from: Vec3, towards: Vec3, mirrorY: number): Vec3 {
   const dx = towards[0] - from[0];
@@ -674,6 +729,8 @@ const brightfield: Modality = {
   id: 'brightfield',
   name: 'Brightfield with Köhler illumination',
   shortName: 'Brightfield',
+  group: 'Transmitted light',
+  illumination: 'transmitted',
   summary:
     'The transmitted-light column, and the two sets of conjugate planes that run through it.',
   principle:
@@ -723,6 +780,8 @@ const epifluorescence: Modality = {
   id: 'epifluorescence',
   name: 'Widefield epifluorescence',
   shortName: 'Epifluorescence',
+  group: 'Fluorescence',
+  illumination: 'epi',
   summary: 'Excitation and emission share the objective, and a dichroic separates them.',
   principle:
     'The objective is both condenser and objective: excitation goes down it and emission comes back up it. That is what "epi" means, and it is why the separation of the two is done by a dichroic mirror rather than by geometry. Everything in the field is excited at once, so out-of-focus fluorescence lands on the detector along with the focal plane.',
@@ -879,6 +938,8 @@ const confocal: Modality = {
   id: 'confocal',
   name: 'Laser scanning confocal',
   shortName: 'Confocal',
+  group: 'Confocal and scanning',
+  illumination: 'epi',
   summary:
     'A focused spot is scanned across the sample and a pinhole rejects everything out of focus.',
   principle:
@@ -1046,6 +1107,8 @@ const phaseContrast: Modality = {
   id: 'phase-contrast',
   name: 'Phase contrast',
   shortName: 'Phase contrast',
+  group: 'Transmitted light',
+  illumination: 'transmitted',
   summary:
     'A quarter-wave shift at the back focal plane turns an invisible phase object into a visible one.',
   principle:
@@ -1177,6 +1240,8 @@ const dic: Modality = {
   id: 'dic',
   name: 'Differential interference contrast',
   shortName: 'DIC',
+  group: 'Transmitted light',
+  illumination: 'transmitted',
   summary: 'Two sheared beams interfere, so the image reports the gradient of optical path.',
   principle:
     'Polarised light is split by a Wollaston prism into two beams a fraction of a micrometre apart at the specimen — less than the resolution limit, so they sample essentially the same point. Whatever difference in optical path they pick up between those two points is converted by a second prism and an analyser into intensity. The image therefore shows the rate of change of optical path along the shear direction, which is what gives DIC its shadowed, relief-like appearance.',
@@ -1326,12 +1391,1323 @@ const dic: Modality = {
   ],
 };
 
+/* -------------------------------------------------------------------------
+ * TIRF.
+ *
+ * Checked against microscopyu's TIRF article, which settles the two things a
+ * drawing of this can get wrong. First, the laser focus in the objective's rear
+ * focal plane is OFF AXIS, and its radial distance is what sets the angle at
+ * the coverslip — move it out and the angle steepens. Second, illumination is
+ * confined to an annulus, because any light through the middle of the aperture
+ * leaves at a sub-critical angle and simply epi-illuminates the specimen,
+ * putting exactly the out-of-focus background TIRF exists to avoid back into
+ * the image.
+ * ---------------------------------------------------------------------- */
+
+/**
+ * One TIRF excitation ray, constructed backwards from where it must arrive.
+ *
+ * `bfpX` is the off-axis distance at the back focal plane — the quantity that
+ * sets the incidence angle. The height of the ray in the arm is then SOLVED so
+ * that it also passes through the open ring of the annular stop rather than
+ * through its blocked centre. Both are computed for the same reason the epi
+ * folds are: a diagram whose stop blocks the ray it is drawn passing is a
+ * diagram disagreeing with itself, and nobody spots it by eye.
+ */
+function tirfExcitationRay(id: string, bfpX: number, stopHeight: number): Ray {
+  // The mirror image of the real focus through the 45° plane x + y = Y.dichroic
+  // is (c − y, c − x), so the arm aims here and the fold lands on the glass.
+  const virtual = point(Y.dichroic - Y.backFocalPlane, Y.dichroic - bfpX);
+  const f = (X.tirfStop - X.lampArm) / (virtual[0] - X.lampArm);
+  const yArm = (Y.dichroic + stopHeight - f * virtual[1]) / (1 - f);
+  const from = point(X.lampArm, yArm);
+  return {
+    id,
+    band: 'excitation',
+    points: [
+      from,
+      foldOn45(from, virtual, Y.dichroic),
+      point(bfpX, Y.backFocalPlane),
+      // Out to the rim of the aperture, then steeply down onto one spot: the
+      // hollow cone that strikes the coverslip past the critical angle.
+      point(Math.sign(bfpX) * 17, Y.objective),
+      point(0, Y.sample),
+    ],
+  };
+}
+
+const tirf: Modality = {
+  id: 'tirf',
+  name: 'Total internal reflection fluorescence',
+  shortName: 'TIRF',
+  group: 'Fluorescence',
+  illumination: 'epi',
+  summary: 'Excitation past the critical angle, so only the first 100 nm of the specimen is lit.',
+  principle:
+    'The laser is brought into the objective off-axis and leaves it steeply enough to reflect ' +
+    'totally off the coverslip–specimen interface rather than crossing it. No propagating light ' +
+    'enters the specimen at all; what excites the fluorophores is the evanescent field, which ' +
+    'decays exponentially and is spent within about a hundred nanometres. The optical section is ' +
+    'therefore roughly a tenth of a confocal one, and it is obtained by not exciting the ' +
+    'background rather than by rejecting it afterwards.',
+  parts: [
+    {
+      ...lamp(
+        'Laser',
+        'A single line, delivered collimated. TIRF needs a source that can be focused to a small spot at a chosen radius in the back aperture, which an arc lamp cannot do without throwing nearly all of it away.',
+      ),
+      id: 'laser',
+      at: [X.lampArm, Y.dichroic, 0],
+      axis: AXIS_X,
+    },
+    {
+      id: 'excitation-filter',
+      name: 'Excitation filter',
+      kind: 'filter',
+      at: [X.filterArm, Y.dichroic, 0],
+      axis: AXIS_X,
+      radius: 14,
+      thickness: 4,
+      role: 'Cleans up the laser line. Even a single-line laser carries plasma emission and Raman light from the delivery fibre, and at the signal levels TIRF is used for that is not negligible.',
+    },
+    {
+      id: 'tirf-stop',
+      name: 'TIRF annulus',
+      kind: 'aperture',
+      at: [X.tirfStop, Y.dichroic, 0],
+      axis: AXIS_X,
+      radius: 16,
+      innerRadius: 8,
+      thickness: 2,
+      conjugate: 'aperture',
+      role: 'Blocks the middle of the beam so only a ring reaches the outer edge of the back aperture. Light through the centre would leave the objective below the critical angle and epi-illuminate the specimen, which is precisely the background TIRF exists to avoid. It sits in a plane conjugate with the back focal plane, because the real one is inside the objective and cannot be reached.',
+      ifWrong:
+        'On a slider in practice, so the same instrument switches between TIRF and widefield. Left half in, the image is a TIRF image with a widefield haze over it, and the contrast is blamed on the sample.',
+    },
+    {
+      id: 'dichroic',
+      name: 'Dichroic mirror',
+      kind: 'dichroic',
+      at: [0, Y.dichroic, 0],
+      axis: AXIS_45_DOWN,
+      radius: 20,
+      thickness: 2,
+      role: 'Turns the excitation down into the objective and passes the emission up to the camera. The same part as in any epifluorescence cube, doing the same job on a beam that happens to be off-axis.',
+    },
+    {
+      id: 'emission-filter',
+      name: 'Emission filter',
+      kind: 'filter',
+      at: [0, Y.emissionFilter, 0],
+      radius: 18,
+      thickness: 4,
+      role: 'Passes the emission and blocks the excitation. Its blocking depth matters more here than in widefield, because single molecules are routinely the thing being counted and the laser is intense.',
+    },
+    specimen,
+    // Above 1.45 by necessity, not ambition: the objective has to deliver an
+    // angle whose sine exceeds the specimen's refractive index divided by the
+    // glass's, and a 1.4 NA lens can only just do it.
+    objective(1.49, 'oil'),
+    backFocalPlane,
+    tubeLens,
+    intermediateImage,
+    camera,
+    ...EPI_STAND,
+  ],
+  rays: [
+    tirfExcitationRay('ex-a', 12, 10),
+    tirfExcitationRay('ex-b', -12, -10),
+    {
+      id: 'em-a',
+      band: 'emission',
+      points: [
+        point(0, Y.sample),
+        point(11, Y.objective),
+        point(11, Y.dichroic),
+        point(11, Y.emissionFilter),
+        point(11, Y.tubeLens),
+        point(0, Y.intermediateImage),
+        point(-4, Y.detector),
+      ],
+    },
+    {
+      id: 'em-b',
+      band: 'emission',
+      points: [
+        point(0, Y.sample),
+        point(-11, Y.objective),
+        point(-11, Y.dichroic),
+        point(-11, Y.emissionFilter),
+        point(-11, Y.tubeLens),
+        point(0, Y.intermediateImage),
+        point(4, Y.detector),
+      ],
+    },
+  ],
+  bands: [
+    {
+      band: 'excitation',
+      label: 'Excitation',
+      description:
+        'A hollow cone, focused off-axis at the back focal plane and striking the coverslip past the critical angle. The further out the focus, the steeper the angle and the shallower the field.',
+    },
+    {
+      band: 'emission',
+      label: 'Emission',
+      description:
+        'Back up the objective as in any epi instrument. There is no out-of-focus path drawn because there is almost nothing out of focus to emit.',
+    },
+  ],
+  optics: {
+    numericalAperture: 1.49,
+    refractiveIndex: 1.515,
+    wavelength: 520,
+    gainKey: 'tirf',
+  },
+  lightOrder: [
+    'laser',
+    'excitation-filter',
+    'tirf-stop',
+    'dichroic',
+    'objective',
+    'specimen',
+    'bfp',
+    'emission-filter',
+    'tube-lens',
+    'intermediate-image',
+    'camera',
+  ],
+  caveats: [
+    'The incidence angle is drawn far shallower than life. Total internal reflection at a glass–water interface needs about 61° from the normal and TIRF is usually run steeper still; at that angle on this scale the rays would leave the objective entirely. What is drawn faithfully is the thing that matters — that the focus is off-axis at the back focal plane, and that moving it further out steepens the angle.',
+    'The totally internally reflected beam is not drawn. It returns down through the objective and out of the instrument, and following it would say nothing the interface does not: no propagating light crosses into the specimen at all.',
+    'The evanescent field itself cannot be drawn as a ray, because it does not propagate. It is a standing disturbance at the interface whose intensity falls exponentially with distance, and its depth is set by the wavelength, the two refractive indices and the angle.',
+  ],
+};
+
+/* -------------------------------------------------------------------------
+ * Spinning disc.
+ *
+ * Two discs on one shaft with the dichroic between them, which is the Yokogawa
+ * CSU arrangement described in Tanaami 2002. The microlens disc concentrates
+ * the laser into each pinhole of the Nipkow disc below it — without it, the
+ * pinholes pass a percent or two of the light and the technique is unusable on
+ * anything dim. The emission returns through the SAME pinholes, so each one is
+ * both illumination aperture and detection pinhole, which is what makes it
+ * confocal rather than merely patterned.
+ * ---------------------------------------------------------------------- */
+
+const spinningDisc: Modality = {
+  id: 'spinning-disc',
+  name: 'Spinning disc confocal',
+  shortName: 'Spinning disc',
+  group: 'Confocal and scanning',
+  illumination: 'epi',
+  summary: 'Thousands of pinholes on a spinning disc, sectioning a whole field at camera speed.',
+  principle:
+    'A point-scanning confocal builds an image one pixel at a time, which sets a hard ceiling on ' +
+    'speed and puts the entire dose into each point in turn. A spinning disc drills the same ' +
+    'pinhole array into a rotating disc and uses thousands of them at once, so the field is ' +
+    'covered in a fraction of a rotation and read out by a camera rather than a point detector. ' +
+    'The sectioning comes from the same pinhole geometry; what changes is that it is parallel.',
+  parts: [
+    {
+      ...lamp(
+        'Laser',
+        'Expanded to fill the microlens disc rather than focused to a point. Every microlens needs its own share of the beam, so the illumination is spread across the whole disc instead of concentrated.',
+      ),
+      id: 'laser',
+      at: [X.lampArm, Y.dichroic, 0],
+      axis: AXIS_X,
+    },
+    {
+      id: 'microlens-disc',
+      name: 'Microlens disc',
+      kind: 'lens',
+      at: [X.filterArm, Y.dichroic, 0],
+      axis: AXIS_X,
+      radius: 17,
+      thickness: 5,
+      role: 'About twenty thousand small lenses, one above each pinhole of the disc below, each concentrating its share of the beam into its own hole. Without it a Nipkow disc transmits a few per cent of the light and the technique is limited to bright specimens.',
+      ifWrong:
+        'The two discs are on one shaft and must stay registered. A microlens array out of alignment with its pinholes throws away the light it exists to save, and the symptom is simply a dim image.',
+    },
+    {
+      id: 'dichroic',
+      name: 'Dichroic mirror',
+      kind: 'dichroic',
+      at: [0, Y.dichroic, 0],
+      axis: AXIS_45_DOWN,
+      radius: 20,
+      thickness: 2,
+      role: 'Sits between the two discs, reflecting the focused excitation down onto the pinhole disc and transmitting the emission that comes back up through the same holes. Its position between the discs is what lets one pinhole array serve both directions.',
+    },
+    {
+      id: 'pinhole-disc',
+      name: 'Nipkow pinhole disc',
+      kind: 'pinhole',
+      at: [0, Y.backFocalPlane + 16, 0],
+      radius: 20,
+      innerRadius: 4,
+      thickness: 2,
+      conjugate: 'field',
+      role: 'A disc of some twenty thousand pinholes laid out in interleaved spirals, so that one rotation sweeps every hole across the whole field evenly. Each hole illuminates one point and admits the light returning from that same point, which is what makes the arrangement confocal.',
+      ifWrong:
+        'Pinhole spacing is a compromise made at the factory and not adjustable. Too close together and light from one hole reaches its neighbours, which is the crosstalk that costs a spinning disc its sectioning in thick specimens; too far apart and the field is covered too slowly.',
+    },
+    {
+      id: 'emission-filter',
+      name: 'Emission filter',
+      kind: 'filter',
+      at: [0, Y.emissionFilter, 0],
+      radius: 18,
+      thickness: 4,
+      role: 'Passes the emission and blocks the excitation, as in any fluorescence instrument. It sits above the dichroic, so everything reaching it has already been through the pinhole disc twice.',
+    },
+    specimen,
+    objective(1.4, 'oil'),
+    backFocalPlane,
+    tubeLens,
+    intermediateImage,
+    {
+      ...camera,
+      role: 'A scientific CMOS or an EMCCD. The disc produces a whole sectioned image at once, so unlike a point-scanning confocal this instrument wants an imaging sensor — and that is where the speed comes from.',
+    },
+    ...EPI_STAND,
+  ],
+  rays: [
+    // Three pinholes, three focused spots. The multipoint character is the
+    // whole difference from a point-scanning instrument, so it is drawn.
+    ...[-9, 0, 9].map((offset, index) => {
+      const virtual = point(Y.dichroic - (Y.backFocalPlane + 16), Y.dichroic - offset);
+      const from = point(X.lampArm, Y.dichroic + offset * 1.6);
+      return {
+        id: `ex-${index}`,
+        band: 'excitation' as const,
+        points: [
+          from,
+          foldOn45(from, virtual, Y.dichroic),
+          point(offset, Y.backFocalPlane + 16),
+          point(offset * 1.5, Y.objective),
+          point(offset * 0.6, Y.sample),
+        ],
+      };
+    }),
+    {
+      id: 'em-a',
+      band: 'emission',
+      points: [
+        point(0, Y.sample),
+        point(10, Y.objective),
+        point(3, Y.backFocalPlane + 16),
+        point(10, Y.dichroic),
+        point(10, Y.emissionFilter),
+        point(10, Y.tubeLens),
+        point(0, Y.intermediateImage),
+        point(-4, Y.detector),
+      ],
+    },
+    {
+      id: 'em-b',
+      band: 'emission',
+      points: [
+        point(0, Y.sample),
+        point(-10, Y.objective),
+        point(-3, Y.backFocalPlane + 16),
+        point(-10, Y.dichroic),
+        point(-10, Y.emissionFilter),
+        point(-10, Y.tubeLens),
+        point(0, Y.intermediateImage),
+        point(4, Y.detector),
+      ],
+    },
+    // Out of focus: arrives at the disc spread across the stop between holes.
+    {
+      id: 'em-out-a',
+      band: 'surround',
+      points: [point(0, Y.sample - 28), point(16, Y.objective), point(14, Y.backFocalPlane + 16)],
+    },
+    {
+      id: 'em-out-b',
+      band: 'surround',
+      points: [point(0, Y.sample - 28), point(-16, Y.objective), point(-14, Y.backFocalPlane + 16)],
+    },
+  ],
+  bands: [
+    {
+      band: 'excitation',
+      label: 'Excitation',
+      description:
+        'Concentrated by a microlens into each pinhole and focused to a spot in the specimen. Three of some twenty thousand are drawn.',
+    },
+    {
+      band: 'emission',
+      label: 'In-focus emission',
+      description:
+        'Back up through the same pinhole that lit the point, then through the dichroic to the camera. One hole serves as both illumination aperture and detection pinhole.',
+    },
+    {
+      band: 'surround',
+      label: 'Out-of-focus emission',
+      description:
+        'Arrives at the disc spread out and mostly lands on the metal between the holes. Some of it finds a neighbouring hole, which is the crosstalk a single pinhole cannot suffer.',
+    },
+  ],
+  optics: {
+    numericalAperture: 1.4,
+    refractiveIndex: 1.515,
+    wavelength: 520,
+    gainKey: 'spinning-disc',
+  },
+  lightOrder: [
+    'laser',
+    'microlens-disc',
+    'dichroic',
+    'pinhole-disc',
+    'objective',
+    'specimen',
+    'bfp',
+    'emission-filter',
+    'tube-lens',
+    'intermediate-image',
+    'camera',
+  ],
+  caveats: [
+    'Three pinholes are drawn out of roughly twenty thousand, and the disc is drawn edge-on as a single aperture. The array is laid out in interleaved spirals so that a fraction of a rotation sweeps the holes evenly over the whole field, which is the part a static drawing cannot show at all.',
+    'The relay optics between the disc and the objective are omitted, as they are for the point-scanning confocal. The pinhole disc is drawn just above the back focal plane for room; in the instrument it sits in a field plane properly conjugate with the specimen.',
+  ],
+};
+
+/* -------------------------------------------------------------------------
+ * Structured illumination.
+ *
+ * The distinguishing geometry is at the back focal plane: a grating splits the
+ * beam and the orders are focused at SEPARATE points across the aperture, not
+ * at one. They leave the objective as separate plane waves, and it is their
+ * interference at the specimen that lays down the fringe pattern. Drawing a
+ * single focus at the centre would be drawing widefield epifluorescence with a
+ * grating drawn in for decoration.
+ * ---------------------------------------------------------------------- */
+
+const sim: Modality = {
+  id: 'sim',
+  name: 'Structured illumination microscopy',
+  shortName: 'SIM',
+  group: 'Super-resolution',
+  illumination: 'epi',
+  summary: 'A fringe pattern beats against the specimen, folding fine detail into the passband.',
+  principle:
+    'The objective cannot collect spatial frequencies above its cutoff, so that detail never ' +
+    'reaches the image. Illuminating with a fine fringe pattern instead of evenly makes the ' +
+    'specimen and the pattern beat together, and the resulting moiré is coarse enough to be ' +
+    'collected — it carries the fine detail with it, disguised. Because the pattern is itself ' +
+    'formed by the same objective it can be no finer than the cutoff, which is exactly why the ' +
+    'method gains a factor of two and not more.',
+  parts: [
+    {
+      ...lamp(
+        'Laser',
+        'Coherent by necessity rather than for brightness: the fringe pattern is an interference pattern, and an incoherent source cannot produce one with the contrast the reconstruction needs.',
+      ),
+      id: 'laser',
+      at: [X.lampArm, Y.dichroic, 0],
+      axis: AXIS_X,
+    },
+    {
+      id: 'grating',
+      name: 'Grating or SLM',
+      kind: 'aperture',
+      at: [X.filterArm, Y.dichroic, 0],
+      axis: AXIS_X,
+      radius: 15,
+      innerRadius: 3,
+      thickness: 3,
+      role: 'Splits the beam into a zero order and a pair of first orders. A physical grating on a rotation stage in the first instruments, a ferroelectric spatial light modulator in current ones, because the pattern must be rotated and shifted between exposures faster than the specimen moves.',
+      ifWrong:
+        'The pattern must be recorded at three orientations and at least three phases each, so nine raw frames make one reconstructed image. Anything that moves between them — the specimen, the stage, the pattern itself — reconstructs as a periodic artefact that looks convincingly like structure.',
+    },
+    {
+      id: 'dichroic',
+      name: 'Dichroic mirror',
+      kind: 'dichroic',
+      at: [0, Y.dichroic, 0],
+      axis: AXIS_45_DOWN,
+      radius: 20,
+      thickness: 2,
+      role: 'Turns the diffracted orders down into the objective and passes the emission up. It has to be flat to a small fraction of a wavelength, because a phase error here distorts the fringe pattern and the reconstruction believes the distortion.',
+    },
+    {
+      id: 'emission-filter',
+      name: 'Emission filter',
+      kind: 'filter',
+      at: [0, Y.emissionFilter, 0],
+      radius: 18,
+      thickness: 4,
+      role: 'Passes the emission and blocks the excitation. Standard for a fluorescence instrument, and unremarkable except that the reconstruction is sensitive to background, so its blocking matters.',
+    },
+    specimen,
+    objective(1.49, 'oil'),
+    backFocalPlane,
+    tubeLens,
+    intermediateImage,
+    {
+      ...camera,
+      role: 'Records the raw frames the reconstruction consumes — nine for a plane in two dimensions, fifteen for three. What the eye is eventually shown is computed, not captured, and no single frame on this sensor looks like the result.',
+    },
+    ...EPI_STAND,
+  ],
+  rays: [
+    // The three orders, focused at three separate points across the aperture.
+    // They emerge as separate plane waves and interfere at the specimen; that
+    // interference is the fringe pattern, and it is the whole technique.
+    ...[
+      { id: 'ex-plus', bfpX: 13 },
+      { id: 'ex-zero', bfpX: 0 },
+      { id: 'ex-minus', bfpX: -13 },
+    ].map(({ id, bfpX }) => {
+      const virtual = point(Y.dichroic - Y.backFocalPlane, Y.dichroic - bfpX);
+      const from = point(X.lampArm, Y.dichroic + bfpX * 1.5);
+      return {
+        id,
+        band: 'excitation' as const,
+        points: [
+          from,
+          foldOn45(from, virtual, Y.dichroic),
+          point(bfpX, Y.backFocalPlane),
+          point(bfpX * 1.15, Y.objective),
+          point(0, Y.sample),
+        ],
+      };
+    }),
+    {
+      id: 'em-a',
+      band: 'emission',
+      points: [
+        point(0, Y.sample),
+        point(12, Y.objective),
+        point(12, Y.dichroic),
+        point(12, Y.emissionFilter),
+        point(12, Y.tubeLens),
+        point(0, Y.intermediateImage),
+        point(-4, Y.detector),
+      ],
+    },
+    {
+      id: 'em-b',
+      band: 'emission',
+      points: [
+        point(0, Y.sample),
+        point(-12, Y.objective),
+        point(-12, Y.dichroic),
+        point(-12, Y.emissionFilter),
+        point(-12, Y.tubeLens),
+        point(0, Y.intermediateImage),
+        point(4, Y.detector),
+      ],
+    },
+  ],
+  bands: [
+    {
+      band: 'excitation',
+      label: 'Excitation orders',
+      description:
+        'Zero and ±1 orders from the grating, focused at separate points across the back focal plane. They leave the objective as separate plane waves and interfere at the specimen to lay down the fringes.',
+    },
+    {
+      band: 'emission',
+      label: 'Emission',
+      description:
+        'Ordinary widefield emission. Nothing about the collection side is special — the resolution is won in the illumination and recovered in the reconstruction.',
+    },
+  ],
+  optics: {
+    numericalAperture: 1.49,
+    refractiveIndex: 1.515,
+    wavelength: 520,
+    gainKey: 'sim',
+  },
+  lightOrder: [
+    'laser',
+    'grating',
+    'dichroic',
+    'objective',
+    'specimen',
+    'bfp',
+    'emission-filter',
+    'tube-lens',
+    'intermediate-image',
+    'camera',
+  ],
+  caveats: [
+    'The fringe pattern itself is not drawn. It exists only where the orders overlap at the specimen, it is finer than anything else on this diagram, and it has to be rotated and stepped between exposures — none of which a single static ray diagram carries.',
+    'The factor of two is a ceiling, not a measurement. It follows from the pattern being formed by the same objective that collects the image, so the finest fringes available are already at the cutoff. Saturating the fluorophores breaks that limit and goes further, at a dose that rules out most living specimens.',
+    'What the instrument records is nine or fifteen raw frames of fringed fluorescence. The image is computed from them, so a reconstruction artefact is a plausible-looking structure rather than obvious noise, and controls matter more here than in a technique that photographs what it sees.',
+  ],
+};
+
+/* -------------------------------------------------------------------------
+ * STED.
+ *
+ * A confocal with a second beam. The depletion laser is red-shifted from the
+ * excitation, is shaped by a vortex phase plate into a doughnut with a true
+ * zero on the axis, and is overlaid on the excitation focus. Everywhere the
+ * doughnut is bright, stimulated emission drives molecules back down before
+ * they can fluoresce spontaneously; only the molecules sitting in the zero
+ * still emit at the wavelength the detector watches. The spot that fluoresces
+ * is therefore smaller than the spot that is lit, and it shrinks as the
+ * depletion power rises — which is why the resolution is a statement about
+ * power rather than about the method.
+ *
+ * The two beams join on one axis at a combining dichroic and are then folded
+ * together at the main dichroic, so both obey the reflection law against the
+ * same drawn normals.
+ * ---------------------------------------------------------------------- */
+
+/** Where the depletion arm runs in, below the excitation laser. */
+const STED = { combiner: Y.sample + 60, laserX: -120 } as const;
+
+const sted: Modality = {
+  id: 'sted',
+  name: 'Stimulated emission depletion',
+  shortName: 'STED',
+  group: 'Super-resolution',
+  illumination: 'epi',
+  summary: 'A doughnut of red light switches off the edges of the spot before it can fluoresce.',
+  principle:
+    'The excitation spot cannot be made smaller than diffraction allows, so STED does not try. It ' +
+    'lights the ordinary spot and then overlays a red-shifted doughnut whose intensity is zero ' +
+    'only at the very centre. Stimulated emission returns the molecules under the bright part of ' +
+    'the doughnut to the ground state before they fluoresce, so although the illuminated spot is ' +
+    'diffraction-limited, the region still emitting at the detected wavelength is not. Raising the ' +
+    'depletion power shrinks it further, and bleaches the specimen faster.',
+  parts: [
+    {
+      id: 'laser',
+      name: 'Excitation laser',
+      kind: 'source',
+      at: [X.confocalArm, Y.sample + 20, 0],
+      radius: 9,
+      thickness: 22,
+      conjugate: 'field',
+      role: 'A pulsed line, as in any confocal. In STED its timing matters as well as its wavelength: the depletion pulse has to arrive while the molecules are still in the excited state and before they have emitted.',
+    },
+    {
+      id: 'sted-laser',
+      name: 'Depletion laser',
+      kind: 'source',
+      at: [STED.laserX, STED.combiner, 0],
+      axis: AXIS_X,
+      radius: 11,
+      thickness: 26,
+      role: 'A high-power source red-shifted from the emission peak — 592 or 775 nm are the usual choices. It must fall on the tail of the emission spectrum, where it can stimulate emission down without exciting the dye in the first place.',
+      ifWrong:
+        'Orders of magnitude more power than the excitation, and it is the reason STED bleaches. A wavelength that still excites the fluorophore even weakly puts a bright ring into the image instead of a dark one.',
+    },
+    {
+      id: 'vortex',
+      name: 'Vortex phase plate',
+      kind: 'aperture',
+      at: [X.confocalArm - 30, STED.combiner, 0],
+      axis: AXIS_X,
+      radius: 14,
+      innerRadius: 5,
+      thickness: 3,
+      conjugate: 'aperture',
+      role: 'A spiral of increasing optical thickness, retarding the beam through a full turn of phase across the aperture. At the focus the contributions cancel exactly on the axis and add off it, which produces a doughnut with a genuine zero at its centre rather than merely a dim middle.',
+      ifWrong:
+        'The depth of that zero sets the resolution. Any aberration or polarisation error that fills it in leaves residual depletion at the centre, which switches off the very molecules the instrument is trying to detect and costs signal without buying sharpness.',
+    },
+    {
+      id: 'combiner',
+      name: 'Combining dichroic',
+      kind: 'dichroic',
+      at: [X.confocalArm, STED.combiner, 0],
+      axis: AXIS_45,
+      radius: 14,
+      thickness: 2,
+      role: 'Brings the depletion beam onto the same axis as the excitation, reflecting the long wavelength up the arm while the excitation passes through from below. From here the two travel together and must stay overlaid to within a few nanometres at the specimen.',
+      ifWrong:
+        'Any drift between the two beams moves the doughnut off the excitation spot. The image then loses signal on one side and keeps it on the other, which reads as a real asymmetry in the specimen.',
+    },
+    {
+      id: 'dichroic',
+      name: 'Main dichroic',
+      kind: 'dichroic',
+      at: [X.confocalArm, Y.dichroic, 0],
+      axis: AXIS_45,
+      radius: 15,
+      thickness: 2,
+      role: 'Turns both beams into the scan head and lets the returning emission pass straight through to the pinhole. It has to separate an emission band from an excitation line and a depletion line either side of it, which is a harder filtering problem than an ordinary confocal presents.',
+    },
+    {
+      id: 'scan-mirrors',
+      name: 'Galvanometer scan mirrors',
+      kind: 'mirror',
+      at: [0, Y.dichroic, 0],
+      axis: AXIS_45_DOWN,
+      radius: 13,
+      thickness: 2,
+      conjugate: 'aperture',
+      role: 'Sweep the overlaid pair across the field and descan the emission on the way back, exactly as in a confocal. Both beams must be swept together, because a doughnut that lags the excitation spot depletes the wrong place.',
+    },
+    specimen,
+    objective(1.4, 'oil'),
+    backFocalPlane,
+    {
+      id: 'pinhole-lens',
+      name: 'Pinhole lens',
+      kind: 'lens',
+      at: [X.confocalArm - 28, Y.dichroic, 0],
+      axis: AXIS_X,
+      radius: 12,
+      thickness: 6,
+      role: 'Focuses the descanned emission onto the pinhole, making the pinhole plane conjugate with the illuminated focus in the specimen. The same part, doing the same job, as in a plain confocal.',
+    },
+    {
+      id: 'pinhole',
+      name: 'Confocal pinhole',
+      kind: 'pinhole',
+      at: [X.confocalArm - 54, Y.dichroic, 0],
+      axis: AXIS_X,
+      radius: 16,
+      innerRadius: 3,
+      thickness: 2,
+      conjugate: 'field',
+      role: 'Still present, and still doing the confocal job of rejecting out-of-focus light. The lateral sharpening comes from the doughnut rather than from this, so the two mechanisms are independent and both are in use.',
+    },
+    {
+      id: 'pmt',
+      name: 'Gated detector',
+      kind: 'detector',
+      at: [X.confocalArm - 84, Y.dichroic, 0],
+      axis: AXIS_X,
+      radius: 16,
+      thickness: 20,
+      role: 'A point detector, usually time-gated. Molecules at the edge of the spot are depleted quickly and those at the centre survive longest, so discarding the earliest photons sharpens the image further at the cost of throwing signal away.',
+    },
+    ...CONFOCAL_STAND,
+  ],
+  rays: [
+    // Excitation comes up the arm from below, passes through the combiner and
+    // folds at the main dichroic. Both folds are solved, not placed.
+    {
+      id: 'ex-a',
+      band: 'excitation',
+      points: [
+        point(X.confocalArm, Y.sample + 20),
+        point(X.confocalArm, STED.combiner),
+        point(X.confocalArm, Y.dichroic),
+        point(0, Y.dichroic),
+        point(0, Y.objective),
+        point(0, Y.sample),
+      ],
+    },
+    // Depletion arrives along +X, turns up at the combiner, joins the
+    // excitation and folds again at the main dichroic and the scan mirrors.
+    //
+    // Separated from the excitation in Z, not in the plane of the diagram. The
+    // two beams are collinear in the instrument — they have to be, or the
+    // doughnut does not sit on the spot it is depleting — so displacing them
+    // sideways would draw them arriving at different angles, which is the one
+    // thing that must not be true of them. Displaced in depth they stay on
+    // every mirror's plane and every fold remains an exact reflection.
+    ...[14, -14].map((z, index) => ({
+      id: `dep-${index}`,
+      band: 'depletion' as const,
+      points: [
+        point(STED.laserX, STED.combiner, z),
+        point(X.confocalArm, STED.combiner, z),
+        point(X.confocalArm, Y.dichroic, z),
+        point(0, Y.dichroic, z),
+        point(0, Y.objective, z),
+        point(0, Y.sample, 0),
+      ],
+    })),
+    confocalEmissionRay('em-focal-a', 12, 'emission'),
+    confocalEmissionRay('em-focal-b', -12, 'emission'),
+  ],
+  bands: [
+    {
+      band: 'excitation',
+      label: 'Excitation',
+      description:
+        'An ordinary diffraction-limited confocal spot. STED does not make this any smaller — it makes most of it stop fluorescing.',
+    },
+    {
+      band: 'depletion',
+      label: 'Depletion',
+      description:
+        'The red-shifted beam, shaped by the vortex plate into a doughnut with a zero on the axis. Overlaid on the excitation spot and swept with it.',
+    },
+    {
+      band: 'emission',
+      label: 'Emission',
+      description:
+        'Only from the molecules sitting in the zero of the doughnut. Descanned and passed through the pinhole as in any confocal.',
+    },
+  ],
+  optics: {
+    numericalAperture: 1.4,
+    refractiveIndex: 1.515,
+    wavelength: 520,
+    gainKey: 'sted',
+  },
+  lightOrder: [
+    'sted-laser',
+    'vortex',
+    'laser',
+    'combiner',
+    'dichroic',
+    'scan-mirrors',
+    'objective',
+    'specimen',
+    'bfp',
+    'pinhole-lens',
+    'pinhole',
+    'pmt',
+  ],
+  caveats: [
+    'The doughnut is the one thing this diagram cannot draw. A ray diagram carries directions, and the depletion pattern is a shape in intensity produced by interference at the focus — the rays drawn as depletion show where the beam goes, not what it becomes when it gets there.',
+    'The depletion and excitation beams are drawn separated in depth so that both can be seen. In the instrument they are collinear from the combining dichroic onwards, and have to be: a doughnut that does not sit exactly on the spot it is depleting takes the signal off centre. Turn the instrument and the two paths close together at the specimen.',
+    'The resolution is not a property of the technique. It scales as the square root of one plus the depletion intensity in units of the dye’s saturation intensity, so a published STED number describes a particular power on a particular dye. The figure beside this drawing is computed at a stated ratio and moves if that ratio does.',
+    'A plain vortex plate confines the spot laterally and does nothing axially. Axial gain needs a second, differently shaped depletion pattern, and combining the two costs power and signal in both directions at once.',
+  ],
+};
+
+/* -------------------------------------------------------------------------
+ * Airyscan.
+ *
+ * A confocal whose pinhole and point detector are replaced by an array of 32
+ * small detectors, each of which acts as its own roughly 0.2 Airy unit pinhole
+ * while the array as a whole subtends about 1.25. Nothing is thrown away at a
+ * stop; instead each element's image is shifted back towards the centre before
+ * the signals are summed. That reassignment is where the resolution comes from,
+ * and it is the reason the technique is called image scanning microscopy in the
+ * literature that predates the product name.
+ * ---------------------------------------------------------------------- */
+
+/** As the confocal emission ray, but arriving at an open array rather than a stop. */
+function airyscanEmissionRay(id: string, halfWidth: number, band: RayBand): Ray {
+  const leavesObjective = point(halfWidth, Y.objective);
+  const hitsMirror = point(halfWidth * 0.75, Y.dichroic);
+  const afterMirror = afterFold(leavesObjective, hitsMirror, AXIS_45_DOWN, X.confocalArm);
+  const inFocus = band === 'emission';
+  return {
+    id,
+    band,
+    points: [
+      point(0, Y.sample - (inFocus ? 0 : 26)),
+      leavesObjective,
+      hitsMirror,
+      afterMirror,
+      point(X.confocalArm - 28, afterMirror[1] * 0.5 + Y.dichroic * 0.5),
+      // Both land ON the array. The out-of-focus light lands on the outer
+      // elements rather than on a stop, which is the whole difference: it is
+      // recorded and weighted rather than discarded.
+      point(X.confocalArm - 62, Y.dichroic + (inFocus ? 0 : halfWidth > 0 ? 13 : -13)),
+    ],
+  };
+}
+
+const airyscan: Modality = {
+  id: 'airyscan',
+  name: 'Airyscan detection',
+  shortName: 'Airyscan',
+  group: 'Confocal and scanning',
+  illumination: 'epi',
+  summary: 'Thirty-two small pinholes instead of one, and their images shifted back together.',
+  principle:
+    'A confocal buys sectioning by throwing light away at the pinhole, and buys resolution only by ' +
+    'closing it further and throwing away more. An array of small detectors covering the same ' +
+    'Airy disc breaks that trade: each element is a small, off-axis pinhole and so sees a sharper ' +
+    'image than the whole disc would, and shifting each element’s image back towards the centre ' +
+    'before summing recovers the sharpness of a closed pinhole while keeping the light of an open ' +
+    'one.',
+  parts: [
+    {
+      id: 'laser',
+      name: 'Laser',
+      kind: 'source',
+      at: [X.confocalArm, Y.sample + 52, 0],
+      radius: 9,
+      thickness: 26,
+      conjugate: 'field',
+      role: 'A single line delivered through a single-mode fibre, whose core is the point source. Identical to a plain confocal — nothing on the illumination side of this instrument is unusual.',
+    },
+    {
+      id: 'dichroic',
+      name: 'Dichroic mirror',
+      kind: 'dichroic',
+      at: [X.confocalArm, Y.dichroic, 0],
+      axis: AXIS_45,
+      radius: 15,
+      thickness: 2,
+      role: 'Turns the laser into the scan head and passes the returning emission through to the detector array. Passed twice in opposite directions, as in any confocal.',
+    },
+    {
+      id: 'scan-mirrors',
+      name: 'Galvanometer scan mirrors',
+      kind: 'mirror',
+      at: [0, Y.dichroic, 0],
+      axis: AXIS_45_DOWN,
+      radius: 13,
+      thickness: 2,
+      conjugate: 'aperture',
+      role: 'Sweep the focus across the field and descan the emission on the way back, holding the returned spot still on the array. Descanning matters more here than usual: the reassignment assumes each element keeps a fixed offset from the spot.',
+    },
+    specimen,
+    objective(1.4, 'oil'),
+    backFocalPlane,
+    {
+      id: 'pinhole-lens',
+      name: 'Collection lens',
+      kind: 'lens',
+      at: [X.confocalArm - 28, Y.dichroic, 0],
+      axis: AXIS_X,
+      radius: 12,
+      thickness: 6,
+      role: 'Focuses the descanned emission onto the detector array, making the array plane conjugate with the illuminated focus. It is the lens that decides how many Airy units the array subtends.',
+    },
+    {
+      id: 'airyscan-array',
+      name: 'Airyscan detector array',
+      kind: 'detector',
+      at: [X.confocalArm - 62, Y.dichroic, 0],
+      axis: AXIS_X,
+      radius: 17,
+      thickness: 8,
+      conjugate: 'field',
+      role: 'Thirty-two GaAsP elements in a hexagonal arrangement, sitting where the pinhole would be. Each element subtends about 0.2 Airy units and so behaves as a small, off-axis pinhole; together they cover roughly 1.25, so essentially all of the light that a confocal would have discarded is recorded instead.',
+      ifWrong:
+        'The reassignment shifts each element’s image by an amount derived from its position, and then a deconvolution runs on top. Push that second step and the images sharpen indefinitely and stop being measurements — the optical gain is the square root of two, and everything past it is processing.',
+    },
+    ...CONFOCAL_STAND,
+  ],
+  rays: [
+    {
+      id: 'ex-a',
+      band: 'excitation',
+      points: [
+        point(X.confocalArm, Y.sample + 52),
+        point(X.confocalArm, Y.dichroic),
+        point(0, Y.dichroic),
+        point(0, Y.objective),
+        point(0, Y.sample),
+      ],
+    },
+    {
+      id: 'ex-scan',
+      band: 'excitation',
+      mirrorMoved: true,
+      points: [
+        point(X.confocalArm, Y.dichroic),
+        point(0, Y.dichroic),
+        point(11, Y.objective),
+        point(7, Y.sample),
+      ],
+    },
+    airyscanEmissionRay('em-focal-a', 12, 'emission'),
+    airyscanEmissionRay('em-focal-b', -12, 'emission'),
+    airyscanEmissionRay('em-out-a', 19, 'surround'),
+    airyscanEmissionRay('em-out-b', -19, 'surround'),
+  ],
+  bands: [
+    {
+      band: 'excitation',
+      label: 'Excitation',
+      description:
+        'A scanned laser focus, exactly as in a confocal. Two positions of the same beam are drawn.',
+    },
+    {
+      band: 'emission',
+      label: 'Central emission',
+      description:
+        'Light from the illuminated focus, landing on the middle elements of the array. In a confocal this is the part that would have passed the pinhole.',
+    },
+    {
+      band: 'surround',
+      label: 'Outer elements',
+      description:
+        'Light a confocal pinhole would have blocked. Here it lands on the outer elements and is reassigned and kept, which is why the technique gains resolution without losing signal.',
+    },
+  ],
+  optics: {
+    numericalAperture: 1.4,
+    refractiveIndex: 1.515,
+    wavelength: 520,
+    gainKey: 'airyscan',
+  },
+  lightOrder: [
+    'laser',
+    'dichroic',
+    'scan-mirrors',
+    'objective',
+    'specimen',
+    'bfp',
+    'pinhole-lens',
+    'airyscan-array',
+  ],
+  caveats: [
+    'The array is drawn as a single disc. It is thirty-two hexagonally packed elements, and their arrangement is what makes the reassignment possible — each element’s offset from the centre is the shift applied to its signal.',
+    'The figure beside the drawing uses the square root of two, which is the gain from reassignment alone and is derivable. Vendors quote about 1.7×, which includes a linear deconvolution applied afterwards; that is a processing step, and folding it into an optical resolution figure would overstate what the hardware does.',
+  ],
+};
+
+/* -------------------------------------------------------------------------
+ * Light sheet.
+ *
+ * The one instrument here whose illumination does not come through the imaging
+ * objective at all. A second, low-NA objective at right angles projects a thin
+ * sheet through the specimen, and only the plane being imaged is lit. The sheet
+ * has a hyperbolic profile — thinnest at its waist and thickening either side —
+ * and the distance over which it stays usably thin is the confocal parameter,
+ * which is why a thinner sheet always means a narrower field.
+ *
+ * Geometry and the waist/confocal-parameter relationship follow microscopyu's
+ * light-sheet article.
+ * ---------------------------------------------------------------------- */
+
+/** A light-sheet stand: a chamber on a breadboard, not an upright column. */
+const SHEET_STAND: Part[] = [
+  {
+    id: 'base',
+    name: 'Optical table',
+    kind: 'body',
+    structural: true,
+    at: [0, -150, 10],
+    box: [120, 14, 70],
+    radius: 120,
+    thickness: 28,
+    role: 'A light sheet is built on a breadboard rather than bought as a stand. Two objectives have to be held at right angles and co-focused to within a fraction of a micrometre, which no conventional microscope frame is designed to do.',
+  },
+  {
+    id: 'chamber',
+    name: 'Specimen chamber',
+    kind: 'body',
+    structural: true,
+    at: [0, -14, 0],
+    box: [54, 40, 54],
+    radius: 54,
+    thickness: 80,
+    role: 'A bath of index-matched medium with windows for both objectives. The specimen usually hangs into it in agarose or on a capillary, so it can be rotated between views rather than being lying on a slide.',
+    ifWrong:
+      'Index mismatch between the medium, the mounting gel and the immersion is the commonest source of a light sheet that will not stay thin across the field, and it appears as a field sharp on one side and soft on the other.',
+  },
+  {
+    id: 'sample-positioner',
+    name: 'Sample positioner',
+    kind: 'body',
+    structural: true,
+    at: [0, 42, 34],
+    box: [16, 30, 16],
+    radius: 16,
+    thickness: 60,
+    role: 'A piezo stage that steps the specimen through the sheet, or sweeps the sheet and the detection focus together. A light sheet images one plane and cannot refocus, so the third dimension is built by moving something — and that motion is the acquisition rather than a preliminary to it.',
+    ifWrong:
+      'The step between planes has to match the sheet thickness. Stepping coarser undersamples the axis and stepping finer only adds dose, and neither is visible in any single frame.',
+  },
+  {
+    id: 'illumination-arm',
+    name: 'Illumination arm',
+    kind: 'body',
+    structural: true,
+    at: [-96, 0, 0],
+    box: [46, 16, 16],
+    radius: 46,
+    thickness: 32,
+    role: 'Carries the sheet-forming optics at right angles to the detection axis. Its alignment is the whole calibration of the instrument: the sheet has to land exactly in the focal plane of the detection objective, and a micrometre out is a visibly soft image.',
+  },
+  head,
+];
+
+function sheetRay(id: string, edge: number, z = 0): Ray {
+  return {
+    id,
+    band: 'excitation',
+    points: [
+      point(X.sheetArm, edge * 2.1, z),
+      point(X.sheetArm / 2, edge * 1.5, z),
+      // The waist, where the sheet is thinnest and where the detection
+      // objective is focused.
+      point(0, 0, z),
+    ],
+  };
+}
+
+const lightSheet: Modality = {
+  id: 'light-sheet',
+  name: 'Light sheet fluorescence microscopy',
+  shortName: 'Light sheet',
+  group: 'Light sheet',
+  illumination: 'orthogonal',
+  summary: 'A thin sheet lights one plane from the side, and only that plane is ever excited.',
+  principle:
+    'Every other fluorescence instrument here illuminates the whole depth of the specimen and then ' +
+    'deals with the out-of-focus light it created — by rejecting it at a pinhole, or by living ' +
+    'with it. A light sheet does not create it. A second objective at right angles projects a ' +
+    'sheet only as thick as the plane being imaged, so nothing outside the focal plane is excited ' +
+    'at all. The consequence is a reduction in photobleaching of orders of magnitude, which is ' +
+    'what makes it the instrument for watching a developing embryo for days.',
+  parts: [
+    {
+      id: 'laser',
+      name: 'Laser',
+      kind: 'source',
+      at: [X.sheetArm, 0, 0],
+      axis: AXIS_X,
+      radius: 10,
+      thickness: 24,
+      role: 'Expanded into a wide, collimated beam. The sheet is formed from it by optics rather than by scanning in the simplest instruments, so the beam has to be broad before it reaches the cylindrical lens.',
+    },
+    {
+      id: 'cylindrical-lens',
+      name: 'Cylindrical lens',
+      kind: 'lens',
+      at: [X.sheetArm + 42, 0, 0],
+      axis: AXIS_X,
+      radius: 18,
+      thickness: 6,
+      role: 'Converges the beam along one axis only and leaves it alone along the other, which is what turns a round beam into a sheet. Scanned-beam instruments replace it with a galvanometer sweeping a pencil beam, which makes a sheet in time rather than in space.',
+      ifWrong:
+        'A sheet is a compromise nobody escapes: the beam waist and the distance over which it stays thin are tied together, so halving the thickness quarters the usable field. A sheet thin enough for a single cell will not cover an embryo.',
+    },
+    {
+      id: 'illumination-objective',
+      name: 'Illumination objective',
+      kind: 'objective',
+      at: [-52, 0, 0],
+      axis: AXIS_X,
+      radius: 14,
+      thickness: 26,
+      role: 'Low numerical aperture on purpose — around 0.3. A high-NA lens would make a thinner waist over a uselessly short range, and the sheet has to stay thin right across the field of the detection objective.',
+    },
+    specimen,
+    {
+      ...objective(1.0, 'water'),
+      role: 'Water-dipping and at right angles to the illumination, collecting from the plane the sheet lights. It does all of the resolving; the illumination objective contributes nothing to the lateral resolution and only bounds the axial.',
+    },
+    backFocalPlane,
+    {
+      id: 'emission-filter',
+      name: 'Emission filter',
+      kind: 'filter',
+      at: [0, Y.emissionFilter, 0],
+      radius: 18,
+      thickness: 4,
+      role: 'Blocks the excitation wavelength, which arrives from the side rather than from below but scatters into the detection path all the same, particularly from the chamber windows.',
+    },
+    tubeLens,
+    intermediateImage,
+    {
+      ...camera,
+      role: 'A large fast sCMOS. The whole illuminated plane is imaged at once with no scanning at all, so the frame rate is limited by the sensor rather than by the optics — which is where light sheet gets its speed.',
+    },
+    ...SHEET_STAND,
+  ],
+  rays: [
+    sheetRay('sheet-top', 9),
+    sheetRay('sheet-mid', 0),
+    sheetRay('sheet-bottom', -9),
+    imagingRay('em-a', 7, 11),
+    imagingRay('em-b', -7, -11),
+  ],
+  bands: [
+    {
+      band: 'excitation',
+      label: 'Light sheet',
+      description:
+        'Converging to a waist at the specimen and diverging again — the hyperbolic profile is why a sheet is only usably thin over a limited stretch, and why field of view and thickness trade against each other.',
+    },
+    {
+      band: 'imaging',
+      label: 'Detection',
+      description:
+        'Up through the detection objective at right angles to the sheet. Ordinary widefield collection: everything special about this instrument happened on the illumination side.',
+    },
+  ],
+  optics: {
+    numericalAperture: 1.0,
+    refractiveIndex: 1.33,
+    wavelength: 520,
+    gainKey: 'light-sheet',
+  },
+  lightOrder: [
+    'laser',
+    'cylindrical-lens',
+    'illumination-objective',
+    'specimen',
+    'objective',
+    'bfp',
+    'emission-filter',
+    'tube-lens',
+    'intermediate-image',
+    'camera',
+  ],
+  caveats: [
+    'The sheet is drawn far thicker than its proportions. A typical waist is one to a few micrometres across a field hundreds of micrometres wide, which on this scale would be a hairline.',
+    'The waist and the usable length are not independent. Halving the thickness of a sheet quarters the distance over which it stays that thin, so the choice of sheet is a choice of field of view — and it is made per specimen, not once for the instrument.',
+    'The axial resolution is whichever is worse: the detection objective’s own depth of field, or the thickness of the sheet. With a high-NA detection objective the sheet is usually the worse of the two, so the resolution figure beside this drawing is an upper bound the instrument will not always reach.',
+  ],
+};
+
+/* -------------------------------------------------------------------------
+ * Lattice light sheet.
+ *
+ * The correction that matters and is easy to get wrong: a Bessel beam comes
+ * from illuminating a COMPLETE thin ring at the back pupil of the illumination
+ * objective; an optical lattice comes from illuminating DISCRETE POINTS around
+ * that same annulus. They are not the same mask and they do not make the same
+ * sheet — the lattice exists precisely because a single Bessel beam puts too
+ * much of its energy into side lobes.
+ * ---------------------------------------------------------------------- */
+
+const latticeLightSheet: Modality = {
+  id: 'lattice-light-sheet',
+  name: 'Lattice light sheet microscopy',
+  shortName: 'Lattice light sheet',
+  group: 'Light sheet',
+  illumination: 'orthogonal',
+  summary: 'An interference lattice makes a sheet near a micrometre thick over a usable field.',
+  principle:
+    'A conventional light sheet trades thickness against field: the thinner the waist, the shorter ' +
+    'the stretch over which it stays thin. A lattice breaks that trade by building the sheet from ' +
+    'a periodic interference pattern of many beams rather than from one focused beam, giving an ' +
+    'effective thickness near a micrometre over a field a Gaussian sheet could only cover at four ' +
+    'or five times that. The sheet then matches the depth of field of a high-NA objective, which ' +
+    'is what brings light sheet into the range of single molecules and organelles.',
+  parts: [
+    {
+      id: 'laser',
+      name: 'Laser',
+      kind: 'source',
+      at: [X.sheetArm, 0, 0],
+      axis: AXIS_X,
+      radius: 10,
+      thickness: 24,
+      role: 'Coherent and expanded. The lattice is an interference pattern between many plane waves, so coherence across the whole pupil is a requirement rather than a convenience.',
+    },
+    {
+      id: 'slm',
+      name: 'Spatial light modulator',
+      kind: 'aperture',
+      at: [X.sheetArm + 34, 0, 0],
+      axis: AXIS_X,
+      radius: 17,
+      innerRadius: 4,
+      thickness: 3,
+      role: 'Writes the pattern that will become the lattice, as a phase hologram. Being programmable, it is what lets one instrument switch between lattice geometries and between the dithered and structured modes without changing any hardware.',
+    },
+    {
+      id: 'annular-mask',
+      name: 'Annular mask',
+      kind: 'aperture',
+      at: [-70, 0, 0],
+      axis: AXIS_X,
+      radius: 16,
+      innerRadius: 11,
+      thickness: 2,
+      conjugate: 'aperture',
+      role: 'Sits in a plane conjugate with the back pupil of the illumination objective and passes only a thin ring. A complete ring would give a Bessel beam; a lattice is made by passing discrete points spaced around that ring instead, and it is the discreteness that suppresses the side lobes a single Bessel beam wastes its energy in.',
+      ifWrong:
+        'Drawn here as a plain annulus because a ring is what the renderer can draw. The distinction matters: complete ring means Bessel, discrete points around the ring means lattice, and confusing the two describes a different instrument with a different point spread function.',
+    },
+    {
+      id: 'illumination-objective',
+      name: 'Illumination objective',
+      kind: 'objective',
+      at: [-46, 0, 0],
+      axis: AXIS_X,
+      radius: 13,
+      thickness: 24,
+      role: 'Higher numerical aperture than a conventional light sheet uses, because the lattice is formed by interference at the focus and needs the angular range. It sits close to the specimen, which is why both objectives and the chamber have to be designed together.',
+    },
+    specimen,
+    {
+      ...objective(1.1, 'water'),
+      role: 'Water-dipping, at right angles to the illumination. Its depth of field is close to the thickness of a dithered lattice sheet, which is the match that makes the combination worth building.',
+    },
+    backFocalPlane,
+    {
+      id: 'emission-filter',
+      name: 'Emission filter',
+      kind: 'filter',
+      at: [0, Y.emissionFilter, 0],
+      radius: 18,
+      thickness: 4,
+      role: 'Blocks the excitation. At the exposure times used for single-molecule work the scattered excitation from the chamber is a real contribution to the background rather than a nominal one.',
+    },
+    tubeLens,
+    intermediateImage,
+    {
+      ...camera,
+      role: 'A fast sCMOS, run at hundreds of frames a second. The instrument is usually limited by how fast the specimen can be stepped through the sheet rather than by the sensor.',
+    },
+    ...SHEET_STAND,
+  ],
+  rays: [
+    // The beamlets of the lattice, spread across z rather than y: the sheet is
+    // thin in the detection direction and wide across it, so rotating the
+    // instrument is what shows the lattice as a lattice.
+    sheetRay('lat-a', 3, -16),
+    sheetRay('lat-b', 3, 0),
+    sheetRay('lat-c', 3, 16),
+    sheetRay('lat-d', -3, -8),
+    sheetRay('lat-e', -3, 8),
+    imagingRay('em-a', 7, 11),
+    imagingRay('em-b', -7, -11),
+  ],
+  bands: [
+    {
+      band: 'excitation',
+      label: 'Lattice',
+      description:
+        'Several beamlets, spread across the width of the sheet rather than its thickness. Turn the instrument to see them separate — the lattice is a pattern across the plane, not down through it.',
+    },
+    {
+      band: 'imaging',
+      label: 'Detection',
+      description:
+        'Up through the detection objective at right angles, as in any light sheet. The lattice changes what is illuminated, not how it is collected.',
+    },
+  ],
+  optics: {
+    numericalAperture: 1.1,
+    refractiveIndex: 1.33,
+    wavelength: 520,
+    gainKey: 'lattice-light-sheet',
+  },
+  lightOrder: [
+    'laser',
+    'slm',
+    'annular-mask',
+    'illumination-objective',
+    'specimen',
+    'objective',
+    'bfp',
+    'emission-filter',
+    'tube-lens',
+    'intermediate-image',
+    'camera',
+  ],
+  caveats: [
+    'The lattice itself is an interference pattern and is not drawn. What is drawn is where its beamlets travel; the periodic structure they produce at the specimen is finer than anything else on this diagram.',
+    'The instrument is normally run with the lattice dithered — swept sideways fast enough that each exposure sees a smooth sheet. A structured-illumination mode uses the pattern as a pattern instead and reports roughly 1.3 to 1.5 times finer, at about 7.5 times the acquisition time.',
+    'The annular mask is drawn as a continuous ring because that is what the renderer can express. A continuous ring is the Bessel case; a lattice illuminates discrete points around the same ring, which is what keeps the energy out of the side lobes.',
+  ],
+};
+
 export const MODALITIES: readonly Modality[] = [
   brightfield,
   epifluorescence,
+  tirf,
   confocal,
+  spinningDisc,
+  airyscan,
   phaseContrast,
   dic,
+  sim,
+  sted,
+  lightSheet,
+  latticeLightSheet,
 ];
 
 export function getModality(id: string): Modality | undefined {

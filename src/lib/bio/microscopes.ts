@@ -579,6 +579,24 @@ function foldOn45(from: Vec3, towards: Vec3, mirrorY: number): Vec3 {
 const EPI_VIRTUAL_FOCUS = point(Y.dichroic - Y.backFocalPlane, Y.dichroic);
 
 /**
+ * A point ON the face of an AXIS_45_DOWN mirror centred on the optical axis.
+ *
+ * The face is the line x + y = mirrorY, so choosing an x fixes the y. Reaching
+ * for `point(x, mirrorY)` instead puts the vertex at the mirror's HEIGHT rather
+ * than on its surface, which for a 45° mirror is a different place — off by
+ * x/√2 — and draws a ray turning in mid-air beside the glass.
+ *
+ * That is not hypothetical. Both the confocal and the Airyscan emission paths
+ * were built that way and shipped, bending 6 mm clear of the scan mirrors,
+ * because the reflection check compared directions and never asked where the
+ * bend happened. The direction was right the whole time, which is why nobody
+ * saw it.
+ */
+function onFoldFace(x: number, mirrorY: number): Vec3 {
+  return [x, mirrorY - x, 0];
+}
+
+/**
  * Where a ray goes after bouncing off a 45° mirror, travelling `runX` in x.
  *
  * Placing the vertex after a fold by hand looks right and is wrong by a few
@@ -683,7 +701,7 @@ function epiExcitationRay(id: string, h: number): Ray {
  */
 function confocalEmissionRay(id: string, halfWidth: number, band: RayBand): Ray {
   const leavesObjective = point(halfWidth, Y.objective);
-  const hitsMirror = point(halfWidth * 0.75, Y.dichroic);
+  const hitsMirror = onFoldFace(halfWidth * 0.75, Y.dichroic);
   const afterMirror = afterFold(leavesObjective, hitsMirror, AXIS_45_DOWN, X.confocalArm);
   const inFocus = band === 'emission';
 
@@ -2188,7 +2206,7 @@ const sted: Modality = {
 /** As the confocal emission ray, but arriving at an open array rather than a stop. */
 function airyscanEmissionRay(id: string, halfWidth: number, band: RayBand): Ray {
   const leavesObjective = point(halfWidth, Y.objective);
-  const hitsMirror = point(halfWidth * 0.75, Y.dichroic);
+  const hitsMirror = onFoldFace(halfWidth * 0.75, Y.dichroic);
   const afterMirror = afterFold(leavesObjective, hitsMirror, AXIS_45_DOWN, X.confocalArm);
   const inFocus = band === 'emission';
   return {

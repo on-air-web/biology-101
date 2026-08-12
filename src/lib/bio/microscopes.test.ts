@@ -162,6 +162,32 @@ describe('the optical trains are physically ordered', () => {
     }
   });
 
+  it('carries exactly as many objectives as its illumination geometry implies', () => {
+    /**
+     * The invariant behind a bug that only showed up when a sixth instrument
+     * arrived: `parts.find(p => p.kind === 'objective')` is unambiguous only
+     * while there is one objective. A light sheet has two, the illumination one
+     * comes first in the list, and every lookup written that way silently
+     * started answering about the wrong lens.
+     *
+     * Stating the rule here means a future modality with two objectives has to
+     * declare itself orthogonal, and any code doing a lookup by kind has one
+     * documented fact to rely on: the imaging objective is the one with the id
+     * `objective`, and it is the only one unless the instrument is orthogonal.
+     */
+    for (const modality of MODALITIES) {
+      const objectives = modality.parts.filter((part) => part.kind === 'objective');
+      const expected = modality.illumination === 'orthogonal' ? 2 : 1;
+      expect(objectives.length, `${modality.id} has ${objectives.length} objectives`).toBe(
+        expected,
+      );
+      expect(
+        objectives.filter((part) => part.id === 'objective').length,
+        `${modality.id} must name its imaging objective "objective", exactly once`,
+      ).toBe(1);
+    }
+  });
+
   it('keeps the STED depletion beam on the excitation it depletes', () => {
     // A doughnut that does not land on the excitation spot depletes the wrong
     // place. Both must arrive at the same point in the specimen.
@@ -235,6 +261,9 @@ describe('the optical trains are physically ordered', () => {
     };
 
     let checked = 0;
+    /** Which mirrors actually had a reflection verified, not merely inspected. */
+    const verified = new Set<string>();
+
     for (const modality of MODALITIES) {
       const mirrors = modality.parts.filter(
         (part) => (part.kind === 'mirror' || part.kind === 'dichroic') && part.axis,
@@ -276,6 +305,31 @@ describe('the optical trains are physically ordered', () => {
             );
             if (turns < 1) continue;
 
+            /**
+             * THE BEND MUST HAPPEN ON THE GLASS, not merely near it.
+             *
+             * The radius test above is a disc test in x and y, and a disc is
+             * not a mirror: a vertex can sit well inside it and still be
+             * nowhere near the tilted plane the mirror actually occupies. That
+             * is a ray turning in mid-air beside the optic, and the reflection
+             * check below cannot see it, because reflecting a direction about a
+             * normal says nothing about where the reflection took place.
+             *
+             * This is exactly how a STED fold came to be built with the wrong
+             * plane equation and still pass — it landed inside the combining
+             * dichroic's radius while sitting some way off its face. Signed
+             * distance to the plane is the check that closes it.
+             */
+            const normal = unit(mirror.axis!);
+            const offPlane =
+              (at[0] - mirror.at[0]) * normal[0]! +
+              (at[1] - mirror.at[1]) * normal[1]! +
+              (at[2] - mirror.at[2]) * normal[2]!;
+            expect(
+              Math.abs(offPlane),
+              `${modality.id}/${ray.id} bends ${Math.abs(offPlane).toFixed(2)} mm off the face of ${mirror.id}, not on it`,
+            ).toBeLessThan(0.5);
+
             const expected = reflect(incoming, unit(mirror.axis!));
             for (let axis = 0; axis < 3; axis += 1) {
               expect(
@@ -284,12 +338,34 @@ describe('the optical trains are physically ordered', () => {
               ).toBeCloseTo(expected[axis]!, 1);
             }
             checked += 1;
+            verified.add(`${modality.id}/${mirror.id}`);
           }
         }
       }
     }
     // Guard against the check silently matching nothing.
     expect(checked).toBeGreaterThan(2);
+
+    /**
+     * EVERY mirror must have been verified, not just some of them.
+     *
+     * A count above two says the check found something somewhere, which is a
+     * guard against the whole thing quietly matching nothing — but it says
+     * nothing about a mirror added later whose rays all miss it, or are all
+     * flagged mirrorMoved, or bend a few millimetres off its face. That mirror
+     * would be drawn at an orientation no ray ever tests, which is precisely
+     * the state the epifluorescence dichroic was in when it was found facing
+     * the wrong way.
+     */
+    for (const modality of MODALITIES) {
+      for (const mirror of modality.parts) {
+        if (mirror.kind !== 'mirror' && mirror.kind !== 'dichroic') continue;
+        expect(
+          verified.has(`${modality.id}/${mirror.id}`),
+          `${modality.id}/${mirror.id} is drawn at an orientation no ray ever reflects off — it is unverified, not correct`,
+        ).toBe(true);
+      }
+    }
   });
 
   it('tilts both dichroics to 45 degrees', () => {
